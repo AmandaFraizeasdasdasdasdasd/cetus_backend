@@ -12,13 +12,6 @@
  *      no key required.
  *      Docs: https://coastwatch.pfeg.noaa.gov/erddap/index.html
  *
- * IMPORTANT: this file has NOT been run against the live OBIS/ERDDAP
- * endpoints (the environment that wrote it has no outbound network
- * access). The request shapes below match each service's documented
- * query conventions, but verify one real response from each endpoint
- * in a browser or with curl before relying on this in production —
- * field names or dataset IDs can drift over time.
- *
  * Neither source gives continuous single-whale movement tracks. That
  * requires a data-sharing agreement with whoever deployed the Argos
  * tags — a partnership question, not something this pipeline solves.
@@ -47,16 +40,11 @@ const OBIS_LOOKBACK_DAYS = parseInt(process.env.OBIS_LOOKBACK_DAYS || '365', 10)
 const ERDDAP_DATASET_ID = process.env.ERDDAP_DATASET_ID || 'jplMURSST41';
 const REFRESH_MINUTES = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '60', 10);
 
-// ---- in-memory cache -------------------------------------------------
-// Swap this for a real database (Postgres, SQLite, etc.) once this is
-// past the prototype stage -- an in-memory cache resets on every deploy
-// and doesn't survive multiple server instances.
 const cache = {
   whaleOccurrences: { updatedAt: null, data: [] },
   seaSurfaceTemp: { updatedAt: null, data: [] },
 };
 
-// ---- OBIS: whale occurrence / telemetry records -----------------------
 async function fetchWhaleOccurrences() {
   const wkt = `POLYGON((` +
     `${BBOX.minLon} ${BBOX.minLat},` +
@@ -74,11 +62,12 @@ async function fetchWhaleOccurrences() {
   url.searchParams.set('startdate', startDate);
   url.searchParams.set('size', '500');
 
-  const res = await fetch(url.toString());
+  const res = await fetch(url.toString(), {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CetusBackend/0.1)' },
+  });
   if (!res.ok) throw new Error(`OBIS request failed: ${res.status}`);
   const body = await res.json();
 
-  // Normalize to the shape the frontend expects.
   return (body.results || [])
     .filter(r => r.decimalLatitude != null && r.decimalLongitude != null)
     .map(r => ({
@@ -92,11 +81,7 @@ async function fetchWhaleOccurrences() {
     }));
 }
 
-// ---- NOAA ERDDAP: sea-surface temperature grid ------------------------
 async function fetchSeaSurfaceTemp() {
-  // Samples SST on a coarse grid across the bounding box. ERDDAP griddap
-  // queries take [(time)][(lat)][(lon)] ranges; adjust stride/step as
-  // needed once you've confirmed the dataset's actual grid resolution.
   const latStep = 2, lonStep = 2;
   const points = [];
   const url =
@@ -104,8 +89,22 @@ async function fetchSeaSurfaceTemp() {
     `?analysed_sst[(last)][(${BBOX.minLat}):${latStep}:(${BBOX.maxLat})]` +
     `[(${BBOX.minLon}):${lonStep}:(${BBOX.maxLon})]`;
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`ERDDAP request failed: ${res.status}`);
+  console.log('[erddap] requesting:', url);
+
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; CetusBackend/0.1; +https://onrender.com)',
+      'Accept': 'application/json',
+    },
+  });
+
+  console.log('[erddap] response status:', res.status, res.statusText);
+
+  if (!res.ok) {
+    const bodyText = await res.text();
+    console.log('[erddap] error body:', bodyText.slice(0, 500));
+    throw new Error(`ERDDAP request failed: ${res.status} ${res.statusText}`);
+  }
   const body = await res.json();
 
   const rows = (body.table && body.table.rows) || [];
@@ -126,7 +125,6 @@ async function fetchSeaSurfaceTemp() {
   return points;
 }
 
-// ---- refresh cycle ------------------------------------------------------
 async function refreshAll() {
   try {
     cache.whaleOccurrences.data = await fetchWhaleOccurrences();
@@ -141,11 +139,11 @@ async function refreshAll() {
     cache.seaSurfaceTemp.updatedAt = new Date().toISOString();
     console.log(`[refresh] ERDDAP SST points: ${cache.seaSurfaceTemp.data.length}`);
   } catch (err) {
-    console.error('[refresh] ERDDAP fetch failed:', err.message);
+    console.error('[refresh] ERDDAP fetch failed — full error dump below');
+    console.error(err);
   }
 }
 
-// ---- API ------------------------------------------------------------
 app.get('/api/whales', (req, res) => {
   res.json(cache.whaleOccurrences);
 });
@@ -174,6 +172,6 @@ app.use(express.static('../Public'));
 
 app.listen(PORT, async () => {
   console.log(`Cetus backend listening on :${PORT}`);
-  await refreshAll(); // populate cache on boot
+  await refreshAll();
   cron.schedule(`*/${REFRESH_MINUTES} * * * *`, refreshAll);
 });
