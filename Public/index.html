@@ -2,77 +2,475 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cetus — Live Data Pipeline Check</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cetus — Satellite Whale Monitoring</title>
 <style>
-  body{font-family:-apple-system,sans-serif;background:#0A1B27;color:#E7EEF0;margin:0;padding:20px;}
-  h1{font-size:18px;margin-bottom:4px;}
-  .sub{color:#8FA9B5;font-size:13px;margin-bottom:20px;}
-  .panel{background:#0F2635;border:1px solid #1E4356;border-radius:4px;padding:14px;margin-bottom:16px;}
-  .panel h2{font-size:13px;color:#8FA9B5;margin:0 0 10px;text-transform:uppercase;letter-spacing:0.04em;}
-  table{width:100%;border-collapse:collapse;font-size:12.5px;}
-  th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #173548;}
-  th{color:#8FA9B5;font-weight:500;}
-  .status{font-family:monospace;font-size:12px;color:#4FC3B6;}
-  .err{color:#E2704F;}
+  :root{
+    --bg:#0A1B27;
+    --bg-panel:#0F2635;
+    --bg-panel-raised:#123044;
+    --line:#1E4356;
+    --line-soft:#173548;
+    --ink:#E7EEF0;
+    --ink-dim:#8FA9B5;
+    --ink-faint:#5C7986;
+    --teal:#4FC3B6;
+    --teal-dim:#2C6E68;
+    --amber:#E7A23D;
+    --coral:#E2704F;
+    --grid:#163243;
+  }
+  html,body{height:100%;}
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'SFMono-Regular',Consolas,monospace;}
+
+  header{
+    padding:18px 20px 16px;
+    border-bottom:1px solid var(--line);
+    background:var(--bg-panel);
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+  header .brand{display:flex; align-items:baseline; gap:10px;}
+  header h1{font-size:22px; font-weight:700; letter-spacing:0.01em; margin:0;}
+  header .tag{color:var(--ink-dim); font-size:13px;}
+  header .meta{font-size:12px; color:var(--ink-faint); text-align:right;}
+  .live-badge{
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:10.5px; color:var(--teal); border:1px solid var(--teal);
+    border-radius:20px; padding:2px 9px; margin-left:8px;
+  }
+  .live-dot{width:6px;height:6px;border-radius:50%;background:var(--teal); animation:blink 1.6s ease-in-out infinite;}
+  @keyframes blink{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+
+  main{max-width:1180px; margin:0 auto; padding:20px; display:grid; grid-template-columns:270px 1fr 300px; gap:16px;}
+  @media (max-width:900px){ main{grid-template-columns:1fr;} }
+
+  .panel{background:var(--bg-panel); border:1px solid var(--line); border-radius:3px; overflow:hidden;}
+  .panel-head{padding:11px 14px; border-bottom:1px solid var(--line); font-size:12px; color:var(--ink-dim); display:flex; justify-content:space-between; align-items:center;}
+
+  .whale-list{max-height:520px; overflow-y:auto;}
+  .whale-row{padding:11px 14px; display:flex; gap:10px; align-items:flex-start; cursor:pointer; border-bottom:1px solid var(--line-soft); transition:background 0.15s ease;}
+  .whale-row:last-child{border-bottom:none;}
+  .whale-row:hover{background:var(--bg-panel-raised);}
+  .whale-row.active{background:var(--bg-panel-raised); box-shadow:inset 3px 0 0 var(--teal);}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;margin-top:5px;}
+  .dot.recent{background:var(--teal);}
+  .dot.older{background:var(--ink-faint);}
+  .whale-row .id{font-size:12.5px; font-weight:600;}
+  .whale-row .sub{font-size:11px; color:var(--ink-faint); margin-top:2px;}
+
+  .map-wrap{padding:0; position:relative;}
+  svg{display:block; width:100%; height:auto;}
+  .grid-line{stroke:var(--grid); stroke-width:1;}
+  .coast{fill:var(--line-soft); opacity:0.7;}
+  .occ-dot{fill:var(--ink-faint); opacity:0.5;}
+  .occ-dot.active{fill:var(--teal);}
+  .pulse{fill:none; stroke:var(--teal); stroke-width:1.5; opacity:0.8; transform-origin:center; animation:pulse 2.2s ease-out infinite;}
+  @keyframes pulse{0%{transform:scale(0.4); opacity:0.8;} 100%{transform:scale(2.6); opacity:0;}}
+  .axis-label{font-size:9px; fill:var(--ink-faint); font-family:'SFMono-Regular',monospace;}
+  .region-label{font-size:10px; fill:var(--ink-dim);}
+
+  .detail-body{padding:14px;}
+  .kv{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line-soft); font-size:12.5px; gap:10px;}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--ink-faint); flex:none;}
+  .kv .v{font-family:'SFMono-Regular',monospace; text-align:right;}
+  .chart-block{padding:14px; border-top:1px solid var(--line);}
+  .chart-title{font-size:11.5px; color:var(--ink-dim); margin-bottom:8px; display:flex; justify-content:space-between;}
+
+  .trend-panel{grid-column:1 / -1;}
+  .trend-body{padding:16px; display:grid; grid-template-columns:1fr 260px; gap:20px;}
+  @media (max-width:700px){.trend-body{grid-template-columns:1fr;}}
+  .trend-note{font-size:12px; color:var(--ink-dim); line-height:1.55;}
+  .trend-note b{color:var(--ink);}
+  .source-list{list-style:none; margin:10px 0 0; padding:0; font-size:11.5px; color:var(--ink-faint);}
+  .source-list li{padding:4px 0; border-top:1px solid var(--line-soft);}
+  .source-list li:first-child{border-top:none;}
+
+  .zone-btn{background:var(--bg-panel-raised); color:var(--coral); border:1px solid var(--coral); border-radius:20px; padding:4px 12px; font-size:11px; cursor:pointer;}
+  .zone-btn.on{background:var(--coral); color:var(--bg-panel);}
+  .drilling-body{padding:16px; display:grid; grid-template-columns:1fr 1fr; gap:24px;}
+  @media (max-width:700px){.drilling-body{grid-template-columns:1fr;}}
+  .drilling-col h3{font-size:13px; margin:0 0 8px; color:var(--ink);}
+  .fact-list{list-style:none; margin:10px 0 0; padding:0; font-size:12.5px; color:var(--ink-dim); line-height:1.55;}
+  .fact-list li{padding:8px 0 8px 14px; border-top:1px solid var(--line-soft); position:relative;}
+  .fact-list li:first-child{border-top:none;}
+  .fact-list li::before{content:'—'; position:absolute; left:0; color:var(--coral);}
+  .fact-list b{color:var(--ink);}
+  .seismic-zone{fill:var(--coral); opacity:0.14; stroke:var(--coral); stroke-width:1; stroke-dasharray:4 3;}
+  .seismic-zone.hidden{display:none;}
+  .seismic-label{font-size:9.5px; fill:var(--coral); font-family:'SFMono-Regular',monospace;}
+  .seismic-label.hidden{display:none;}
+
+  footer{max-width:1180px; margin:0 auto; padding:8px 20px 32px; font-size:11px; color:var(--ink-faint);}
+  .loading{padding:20px; font-size:12px; color:var(--ink-faint); text-align:center;}
 </style>
 </head>
 <body>
-  <h1>Cetus — Live Data Pipeline Check</h1>
-  <div class="sub">Confirms the backend is actually pulling real OBIS + NOAA ERDDAP data. Not the styled dashboard — that's the next step once this is deployed and verified.</div>
 
-  <div class="panel">
-    <h2>Pipeline status</h2>
-    <div id="status" class="status">Loading…</div>
+<header>
+  <div class="brand">
+    <h1>Cetus</h1>
+    <span class="tag">Satellite-linked whale monitoring</span>
+    <span class="live-badge"><span class="live-dot"></span>LIVE DATA</span>
+  </div>
+  <div class="meta">North Atlantic humpback corridor<br>Updated <span id="dataUpdated" class="mono">—</span></div>
+</header>
+
+<main>
+  <div class="panel" id="whaleListPanel">
+    <div class="panel-head"><span>Recent occurrences (OBIS)</span><span class="mono" id="occCount">—</span></div>
+    <div class="whale-list" id="whaleList"><div class="loading">Loading real data…</div></div>
   </div>
 
-  <div class="panel">
-    <h2>Whale occurrences (OBIS)</h2>
-    <div id="whales">Loading…</div>
+  <div class="panel map-wrap">
+    <div class="panel-head"><span>Migration corridor · Gulf of Maine → Silver Bank</span><span class="mono" id="mapCoords">—</span></div>
+    <svg id="mapSvg" viewBox="0 0 640 520" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
 
-  <div class="panel">
-    <h2>Sea surface temperature (NOAA ERDDAP)</h2>
-    <div id="ocean">Loading…</div>
+  <div class="panel" id="detailPanel">
+    <div class="panel-head"><span>Selected sighting</span><span class="mono" id="detailId">—</span></div>
+    <div class="detail-body" id="detailBody"><div class="loading">—</div></div>
+    <div class="chart-block">
+      <div class="chart-title"><span>Sightings by month</span><span class="mono" id="sightMax">—</span></div>
+      <svg id="histSvg" viewBox="0 0 260 110" preserveAspectRatio="none" style="width:100%;height:110px;"></svg>
+    </div>
   </div>
+
+  <div class="panel trend-panel">
+    <div class="panel-head"><span>Regional population index · Gulf of Maine feeding aggregation</span><span class="mono">2016–2026</span></div>
+    <div class="trend-body">
+      <div><svg id="trendSvg" viewBox="0 0 760 200" preserveAspectRatio="none" style="width:100%; height:200px;"></svg></div>
+      <div>
+        <p class="trend-note"><b>Illustrative composite index</b>, shaped to match published patterns: growth through the mid-2010s, a marked dip during the 2016–2023 Unusual Mortality Event, gradual stabilization since. Not official stock-assessment figures — NOAA stock assessments aren't available as a live feed yet.</p>
+        <ul class="source-list">
+          <li>Occurrence data — OBIS, live pipeline</li>
+          <li>Ocean temperature — NOAA CoastWatch ERDDAP, live pipeline</li>
+          <li>Individual tag tracks — pending Argos data-sharing partnership</li>
+          <li>Imagery — Maxar WorldView-3 (commercial license required)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel trend-panel" id="drillingPanel">
+    <div class="panel-head">
+      <span>Ocean drilling &amp; seismic survey exposure</span>
+      <button id="toggleZone" class="zone-btn mono">Show survey zone on map</button>
+    </div>
+    <div class="drilling-body">
+      <div class="drilling-col">
+        <h3>How exploration activity reaches whales</h3>
+        <p class="trend-note">Oil and gas exploration locates seabed reserves with <b>seismic airgun arrays</b> — towed devices that fire a compressed-air blast every 10–15 seconds for the duration of a survey, sometimes weeks. The resulting low-frequency noise travels far more efficiently underwater than in air.</p>
+        <ul class="fact-list">
+          <li><b>Behavioral range:</b> controlled studies on humpbacks (the BRAHSS project) found airgun noise altered swimming and vocal behavior at distances up to ~3 km from the source.</li>
+          <li><b>Documented harms:</b> hearing damage, disrupted communication and feeding, displacement from surveyed habitat, and — in some species such as narwhals, which freeze rather than flee — elevated stranding risk.</li>
+          <li><b>Beyond noise:</b> platform and rig placement itself fragments habitat, support-vessel traffic raises ship-strike risk, and an active well always carries some spill risk to feeding and calving grounds.</li>
+        </ul>
+      </div>
+      <div class="drilling-col">
+        <h3>Why this belongs on a tracking dashboard</h3>
+        <p class="trend-note">Overlaying proposed or active survey/lease blocks against real occurrence data is how this becomes decision-useful rather than just descriptive — it shows whether a corridor a client cares about actually overlaps operational activity, and when.</p>
+        <p class="trend-note" style="margin-top:10px;">The map includes a sample lease block off the Carolina coast — roughly where Atlantic seismic surveys have historically been proposed — to demonstrate the overlay. Toggle it on to see it sit across the corridor.</p>
+        <ul class="source-list">
+          <li>Airgun behavioral-response findings — BRAHSS / Journal of Experimental Biology</li>
+          <li>Species vulnerability &amp; stranding risk — Marine Conservation Research report for Greenpeace Nordic</li>
+          <li>Survey/lease block boundaries (live) — BOEM (US) or equivalent national regulator, not connected here</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel trend-panel" id="historyPanel">
+    <div class="panel-head"><span>Whaling pressure &amp; anti-whaling campaigns</span></div>
+    <div class="drilling-body">
+      <div class="drilling-col">
+        <h3>Commercial whaling &amp; the moratorium</h3>
+        <p class="trend-note">Industrial whaling drove several great whale populations — including North Atlantic humpbacks — to the edge of collapse through the mid-20th century. The International Whaling Commission's 1986 moratorium halted most commercial whaling, and it's the main reason population-recovery trends like the one charted above exist at all.</p>
+        <ul class="fact-list">
+          <li><b>The loophole:</b> Japan continued Antarctic whaling for decades under a "scientific research" permit, a workaround the moratorium allowed but conservation groups argued was commercial whaling in disguise.</li>
+          <li><b>Direct-action response:</b> Sea Shepherd Conservation Society ran annual campaigns shadowing and blocking Japan's whaling fleet in the Southern Ocean, including its factory ship, the Nisshin Maru.</li>
+        </ul>
+      </div>
+      <div class="drilling-col">
+        <h3>Notable campaign history</h3>
+        <p class="trend-note">Sea Shepherd's fleet became well known through these campaigns, funded in part by high-profile donors — Bob Barker's $5 million gift funded the ship named in his honor, the MY Bob Barker, which spent years actively interfering with the Antarctic whaling fleet.</p>
+        <ul class="fact-list">
+          <li>Tactics included physically blocking harpoon vessels, fouling propellers, and shadowing the fleet to prevent hunts.</li>
+          <li>Confrontations sometimes escalated — the Sea Shepherd vessel Ady Gil was lost in a 2010 collision with a Japanese security vessel.</li>
+          <li>Japan formally withdrew from the IWC in 2019 and resumed commercial whaling within its own territorial waters, ending the Antarctic "research" hunts Sea Shepherd had targeted.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel trend-panel" id="captivityPanel">
+    <div class="panel-head"><span>Whales in captivity — current status</span><span class="mono">~54 orcas worldwide</span></div>
+    <div class="drilling-body">
+      <div class="drilling-col">
+        <h3>Where things stand</h3>
+        <p class="trend-note">Captivity is almost entirely an orca story — few other whale species are held long-term. As of early 2026, an estimated 53–55 orcas remain in captivity worldwide, down from a peak of well over a hundred.</p>
+        <ul class="fact-list">
+          <li><b>SeaWorld</b> holds around 16 orcas across its San Diego, Orlando, and San Antonio parks — the largest single holder, and the last in the Western Hemisphere.</li>
+          <li>SeaWorld ended its captive breeding program in 2016, following sustained public pressure after the documentary <i>Blackfish</i>, and hasn't captured a wild orca since the 1980s.</li>
+          <li>Wild capture hasn't fully stopped globally — a 2018 capture of 10 orcas in Russian waters, destined for Chinese parks, drew international condemnation before most were released back to the wild in 2019.</li>
+        </ul>
+      </div>
+      <div class="drilling-col">
+        <h3>Where it's heading</h3>
+        <p class="trend-note">The direction is toward retirement rather than replacement: no major Western facility is currently breeding or acquiring new orcas, and momentum has shifted toward seaside sanctuaries — netted-off coastal coves — as a more natural retirement option than a concrete tank, though none currently house a former SeaWorld orca.</p>
+        <ul class="source-list">
+          <li>Captive population counts — Whale &amp; Dolphin Conservation, Wikipedia (List of captive orcas)</li>
+          <li>SeaWorld history &amp; breeding ban — International Marine Mammal Project / Earth Island Institute</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Occurrence data (OBIS) and ocean temperature (NOAA CoastWatch) are live and refresh automatically. Continuous individual-whale tag tracks require an Argos data-sharing agreement — in progress, not yet connected. Imagery requires a separate Maxar (or equivalent) license.
+</footer>
 
 <script>
-// Same-origin API calls to the Express backend serving this page.
-async function load() {
-  try {
-    const status = await (await fetch('/api/status')).json();
-    document.getElementById('status').textContent = JSON.stringify(status, null, 2);
-  } catch (e) {
-    document.getElementById('status').innerHTML = `<span class="err">Status fetch failed: ${e.message}</span>`;
-  }
+let occurrences = [];
+let oceanPoints = [];
+let selectedId = null;
+let zoneVisible = false;
 
-  try {
-    const w = await (await fetch('/api/whales')).json();
-    const rows = w.data.slice(0, 20).map(r =>
-      `<tr><td>${r.species}</td><td>${r.lat.toFixed(2)}</td><td>${r.lon.toFixed(2)}</td><td>${r.date || '—'}</td><td>${r.dataset || '—'}</td></tr>`
-    ).join('');
-    document.getElementById('whales').innerHTML = w.data.length
-      ? `<table><tr><th>Species</th><th>Lat</th><th>Lon</th><th>Date</th><th>Dataset</th></tr>${rows}</table>
-         <div class="sub" style="margin-top:8px;">Showing ${Math.min(20,w.data.length)} of ${w.data.length} records. Updated ${w.updatedAt}.</div>`
-      : `<span class="err">No records returned — check server logs / OBIS query.</span>`;
-  } catch (e) {
-    document.getElementById('whales').innerHTML = `<span class="err">Whale fetch failed: ${e.message}</span>`;
-  }
+const seismicZone = {
+  bounds: {latMin:32.5, latMax:35.5, lonMin:-77.5, lonMax:-74.5},
+  label:'Sample lease block · illustrative'
+};
 
-  try {
-    const o = await (await fetch('/api/ocean')).json();
-    const rows = o.data.slice(0, 20).map(r =>
-      `<tr><td>${r.lat}</td><td>${r.lon}</td><td>${r.sstCelsius != null ? r.sstCelsius.toFixed(2) : '—'}</td><td>${r.time || '—'}</td></tr>`
-    ).join('');
-    document.getElementById('ocean').innerHTML = o.data.length
-      ? `<table><tr><th>Lat</th><th>Lon</th><th>SST °C</th><th>Time</th></tr>${rows}</table>
-         <div class="sub" style="margin-top:8px;">Showing ${Math.min(20,o.data.length)} of ${o.data.length} points. Updated ${o.updatedAt}.</div>`
-      : `<span class="err">No SST points returned — check server logs / ERDDAP dataset ID.</span>`;
-  } catch (e) {
-    document.getElementById('ocean').innerHTML = `<span class="err">Ocean fetch failed: ${e.message}</span>`;
-  }
+const mapBounds = {latMin:18, latMax:45, lonMin:-80, lonMax:-66};
+const mapW = 640, mapH = 520, mapPad = 40;
+function project(lat, lon){
+  const x = mapPad + ( (lon - mapBounds.lonMin) / (mapBounds.lonMax - mapBounds.lonMin) ) * (mapW - mapPad*2);
+  const y = mapPad + ( 1 - (lat - mapBounds.latMin) / (mapBounds.latMax - mapBounds.latMin) ) * (mapH - mapPad*2);
+  return [x,y];
 }
-load();
+function svgEl(tag, attrs){
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for(const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+function daysAgo(dateStr){
+  if(!dateStr) return Infinity;
+  const d = new Date(dateStr);
+  if(isNaN(d)) return Infinity;
+  return (Date.now() - d.getTime()) / 86400000;
+}
+function nearestSST(lat, lon){
+  if(!oceanPoints.length) return null;
+  let best=null, bestD=Infinity;
+  for(const p of oceanPoints){
+    if(p.sstCelsius==null) continue;
+    const dd = (p.lat-lat)*(p.lat-lat) + (p.lon-lon)*(p.lon-lon);
+    if(dd<bestD){bestD=dd; best=p;}
+  }
+  return best;
+}
+
+function drawMap(){
+  const svg = document.getElementById('mapSvg');
+  svg.innerHTML = '';
+
+  for(let lat=20; lat<=45; lat+=5){
+    const [x1,y1] = project(lat, mapBounds.lonMin);
+    const [x2,y2] = project(lat, mapBounds.lonMax);
+    svg.appendChild(svgEl('line',{x1,y1,x2,y2,class:'grid-line'}));
+    const lbl = svgEl('text',{x:6,y:y1+3,class:'axis-label'}); lbl.textContent = lat+'°N';
+    svg.appendChild(lbl);
+  }
+  for(let lon=-80; lon<=-66; lon+=4){
+    const [x1,y1] = project(mapBounds.latMin, lon);
+    const [x2,y2] = project(mapBounds.latMax, lon);
+    svg.appendChild(svgEl('line',{x1,y1,x2,y2,class:'grid-line'}));
+    const lbl = svgEl('text',{x:x1-10,y:mapH-8,class:'axis-label'}); lbl.textContent = lon+'°W';
+    svg.appendChild(lbl);
+  }
+
+  const coastNE = 'M 40,40 L 120,55 L 150,120 L 130,190 L 100,230 L 70,260 L 55,320 L 40,320 Z';
+  const coastSE = 'M 55,320 L 100,340 L 140,400 L 150,460 L 110,480 L 60,480 L 45,420 Z';
+  svg.appendChild(svgEl('path',{d:coastNE, class:'coast'}));
+  svg.appendChild(svgEl('path',{d:coastSE, class:'coast'}));
+  const [ix,iy] = project(19.5,-70.5);
+  svg.appendChild(svgEl('ellipse',{cx:ix+10, cy:iy+18, rx:34, ry:9, class:'coast'}));
+  const regionLbl1 = svgEl('text',{x:150,y:60,class:'region-label'}); regionLbl1.textContent='Gulf of Maine';
+  const regionLbl2 = svgEl('text',{x:ix-30,y:iy+40,class:'region-label'}); regionLbl2.textContent='Silver Bank';
+  svg.appendChild(regionLbl1); svg.appendChild(regionLbl2);
+
+  occurrences.forEach(o=>{
+    if(o.lat==null || o.lon==null) return;
+    const isActive = o.id === selectedId;
+    const [x,y] = project(o.lat, o.lon);
+    if(isActive) svg.appendChild(svgEl('circle',{cx:x,cy:y,r:12,class:'pulse'}));
+    svg.appendChild(svgEl('circle',{cx:x,cy:y,r:isActive?4:2,class:'occ-dot'+(isActive?' active':'')}));
+  });
+
+  const zb = seismicZone.bounds;
+  const [zx1,zy1] = project(zb.latMax, zb.lonMin);
+  const [zx2,zy2] = project(zb.latMin, zb.lonMax);
+  svg.appendChild(svgEl('rect',{x:zx1,y:zy1,width:(zx2-zx1),height:(zy2-zy1),class:'seismic-zone'+(zoneVisible?'':' hidden')}));
+  const zlbl = svgEl('text',{x:zx1+4,y:zy1+12,class:'seismic-label'+(zoneVisible?'':' hidden')}); zlbl.textContent = seismicZone.label;
+  svg.appendChild(zlbl);
+
+  const sel = occurrences.find(o=>o.id===selectedId);
+  document.getElementById('mapCoords').textContent = sel ? `${sel.lat.toFixed(2)}°N, ${Math.abs(sel.lon).toFixed(2)}°W` : '—';
+}
+
+function drawHistogram(){
+  const svg = document.getElementById('histSvg');
+  svg.innerHTML = '';
+  const now = new Date();
+  const buckets = [];
+  for(let i=11;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    buckets.push({label:d.toLocaleString('en',{month:'short'}), year:d.getFullYear(), month:d.getMonth(), count:0});
+  }
+  occurrences.forEach(o=>{
+    if(!o.date) return;
+    const d = new Date(o.date);
+    if(isNaN(d)) return;
+    const b = buckets.find(b=>b.year===d.getFullYear() && b.month===d.getMonth());
+    if(b) b.count++;
+  });
+  const max = Math.max(1, ...buckets.map(b=>b.count));
+  document.getElementById('sightMax').textContent = max + ' max/mo';
+  const W=260,H=110,pad=8,barGap=3;
+  const barW = (W-pad*2)/buckets.length - barGap;
+  buckets.forEach((b,i)=>{
+    const h = (b.count/max)*(H-pad*2-14);
+    const x = pad + i*((W-pad*2)/buckets.length);
+    const y = H-pad-h;
+    svg.appendChild(svgEl('rect',{x,y,width:barW,height:h,fill:'var(--teal)',opacity:'0.8'}));
+    if(i%3===0){
+      const lbl = svgEl('text',{x, y:H-2, class:'axis-label'}); lbl.textContent=b.label;
+      svg.appendChild(lbl);
+    }
+  });
+  svg.appendChild(svgEl('line',{x1:pad,y1:H-pad,x2:W-pad,y2:H-pad,stroke:'var(--line)','stroke-width':'1'}));
+}
+
+function drawTrend(){
+  const svg = document.getElementById('trendSvg');
+  svg.innerHTML='';
+  const years = [2016,2017,2018,2019,2020,2021,2022,2023,2024,2025,2026];
+  const idx =   [100, 96,  88,  74,  62,  55,  53,  57,  66,  74,  80];
+  const W=760,H=200,padL=36,padR=10,padT=14,padB=26;
+  const maxV = 110;
+  const pts = idx.map((v,i)=>{
+    const x = padL + (i/(idx.length-1))*(W-padL-padR);
+    const y = padT + (1 - v/maxV)*(H-padT-padB);
+    return [x,y];
+  });
+  [0,25,50,75,100].forEach(v=>{
+    const y = padT + (1-v/maxV)*(H-padT-padB);
+    svg.appendChild(svgEl('line',{x1:padL,y1:y,x2:W-padR,y2:y,class:'grid-line'}));
+    const lbl = svgEl('text',{x:4,y:y+3,class:'axis-label'}); lbl.textContent=v;
+    svg.appendChild(lbl);
+  });
+  years.forEach((yr,i)=>{
+    if(i%2===0){
+      const lbl = svgEl('text',{x:pts[i][0]-10,y:H-6,class:'axis-label'}); lbl.textContent=yr;
+      svg.appendChild(lbl);
+    }
+  });
+  const d = pts.map((p,i)=> (i===0?'M':'L') + p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const area = d + ` L ${pts[pts.length-1][0]},${H-padB} L ${pts[0][0]},${H-padB} Z`;
+  svg.appendChild(svgEl('path',{d:area, fill:'var(--teal-dim)', opacity:'0.3', stroke:'none'}));
+  svg.appendChild(svgEl('path',{d, fill:'none', stroke:'var(--teal)', 'stroke-width':'2'}));
+  const xA = pts[years.indexOf(2016)][0];
+  const xB = pts[years.indexOf(2023)][0];
+  svg.appendChild(svgEl('rect',{x:xA,y:padT,width:xB-xA,height:H-padT-padB, fill:'var(--coral)', opacity:'0.07'}));
+  const umeLbl = svgEl('text',{x:xA+4,y:padT+12,class:'axis-label'}); umeLbl.textContent='Unusual Mortality Event window';
+  svg.appendChild(umeLbl);
+}
+
+function renderList(){
+  const list = document.getElementById('whaleList');
+  document.getElementById('occCount').textContent = occurrences.length;
+  if(!occurrences.length){ list.innerHTML = '<div class="loading">No records returned.</div>'; return; }
+  list.innerHTML = '';
+  occurrences.slice(0,60).forEach(o=>{
+    const recent = daysAgo(o.date) <= 90;
+    const row = document.createElement('div');
+    row.className = 'whale-row' + (o.id===selectedId?' active':'');
+    row.onclick = ()=>{ selectedId = o.id; render(); };
+    const dateStr = o.date ? new Date(o.date).toLocaleDateString() : 'undated';
+    row.innerHTML = `
+      <div class="dot ${recent?'recent':'older'}"></div>
+      <div>
+        <div class="id mono">${dateStr}</div>
+        <div class="sub">${o.dataset || 'Unknown source'}</div>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+
+function renderDetail(){
+  const o = occurrences.find(o=>o.id===selectedId);
+  document.getElementById('detailId').textContent = o ? (o.date ? new Date(o.date).toLocaleDateString() : '—') : '—';
+  if(!o){ document.getElementById('detailBody').innerHTML = '<div class="loading">Select a sighting</div>'; return; }
+  const sst = nearestSST(o.lat, o.lon);
+  document.getElementById('detailBody').innerHTML = `
+    <div class="kv"><span class="k">Species</span><span class="v">${o.species || '—'}</span></div>
+    <div class="kv"><span class="k">Date</span><span class="v">${o.date ? new Date(o.date).toLocaleString() : '—'}</span></div>
+    <div class="kv"><span class="k">Position</span><span class="v">${o.lat.toFixed(3)}, ${o.lon.toFixed(3)}</span></div>
+    <div class="kv"><span class="k">Dataset</span><span class="v">${o.dataset || '—'}</span></div>
+    <div class="kv"><span class="k">Record type</span><span class="v">${o.basisOfRecord || '—'}</span></div>
+    <div class="kv"><span class="k">Nearest SST</span><span class="v">${sst ? sst.sstCelsius.toFixed(1)+'°C' : '—'}</span></div>
+  `;
+}
+
+function render(){
+  renderList();
+  renderDetail();
+  drawMap();
+  drawHistogram();
+}
+
+async function loadData(){
+  try {
+    const res = await fetch('/api/whales');
+    const w = await res.json();
+    occurrences = (w.data || []).slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0));
+    if(w.updatedAt) document.getElementById('dataUpdated').textContent = new Date(w.updatedAt).toLocaleString();
+    if(occurrences.length) selectedId = occurrences[0].id;
+  } catch(e){
+    document.getElementById('whaleList').innerHTML = '<div class="loading">Could not load whale data — is the backend running?</div>';
+  }
+  try {
+    const res2 = await fetch('/api/ocean');
+    const o = await res2.json();
+    oceanPoints = o.data || [];
+  } catch(e){ /* non-fatal — SST readouts just show — */ }
+
+  render();
+  drawTrend();
+}
+
+document.getElementById('toggleZone').addEventListener('click', (e)=>{
+  zoneVisible = !zoneVisible;
+  e.target.textContent = zoneVisible ? 'Hide survey zone' : 'Show survey zone on map';
+  e.target.classList.toggle('on', zoneVisible);
+  drawMap();
+});
+
+loadData();
+setInterval(loadData, 5 * 60 * 1000); // refresh view every 5 min
 </script>
 </body>
 </html>
