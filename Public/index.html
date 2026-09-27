@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cetus — Live Data Pipeline Check</title>
+<style>
+  body{font-family:-apple-system,sans-serif;background:#0A1B27;color:#E7EEF0;margin:0;padding:20px;}
+  h1{font-size:18px;margin-bottom:4px;}
+  .sub{color:#8FA9B5;font-size:13px;margin-bottom:20px;}
+  .panel{background:#0F2635;border:1px solid #1E4356;border-radius:4px;padding:14px;margin-bottom:16px;}
+  .panel h2{font-size:13px;color:#8FA9B5;margin:0 0 10px;text-transform:uppercase;letter-spacing:0.04em;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #173548;}
+  th{color:#8FA9B5;font-weight:500;}
+  .status{font-family:monospace;font-size:12px;color:#4FC3B6;}
+  .err{color:#E2704F;}
+</style>
+</head>
+<body>
+  <h1>Cetus — Live Data Pipeline Check</h1>
+  <div class="sub">Confirms the backend is actually pulling real OBIS + NOAA ERDDAP data. Not the styled dashboard — that's the next step once this is deployed and verified.</div>
+
+  <div class="panel">
+    <h2>Pipeline status</h2>
+    <div id="status" class="status">Loading…</div>
+  </div>
+
+  <div class="panel">
+    <h2>Whale occurrences (OBIS)</h2>
+    <div id="whales">Loading…</div>
+  </div>
+
+  <div class="panel">
+    <h2>Sea surface temperature (NOAA ERDDAP)</h2>
+    <div id="ocean">Loading…</div>
+  </div>
+
+<script>
+// Same-origin API calls to the Express backend serving this page.
+async function load() {
+  try {
+    const status = await (await fetch('/api/status')).json();
+    document.getElementById('status').textContent = JSON.stringify(status, null, 2);
+  } catch (e) {
+    document.getElementById('status').innerHTML = `<span class="err">Status fetch failed: ${e.message}</span>`;
+  }
+
+  try {
+    const w = await (await fetch('/api/whales')).json();
+    const rows = w.data.slice(0, 20).map(r =>
+      `<tr><td>${r.species}</td><td>${r.lat.toFixed(2)}</td><td>${r.lon.toFixed(2)}</td><td>${r.date || '—'}</td><td>${r.dataset || '—'}</td></tr>`
+    ).join('');
+    document.getElementById('whales').innerHTML = w.data.length
+      ? `<table><tr><th>Species</th><th>Lat</th><th>Lon</th><th>Date</th><th>Dataset</th></tr>${rows}</table>
+         <div class="sub" style="margin-top:8px;">Showing ${Math.min(20,w.data.length)} of ${w.data.length} records. Updated ${w.updatedAt}.</div>`
+      : `<span class="err">No records returned — check server logs / OBIS query.</span>`;
+  } catch (e) {
+    document.getElementById('whales').innerHTML = `<span class="err">Whale fetch failed: ${e.message}</span>`;
+  }
+
+  try {
+    const o = await (await fetch('/api/ocean')).json();
+    const rows = o.data.slice(0, 20).map(r =>
+      `<tr><td>${r.lat}</td><td>${r.lon}</td><td>${r.sstCelsius != null ? r.sstCelsius.toFixed(2) : '—'}</td><td>${r.time || '—'}</td></tr>`
+    ).join('');
+    document.getElementById('ocean').innerHTML = o.data.length
+      ? `<table><tr><th>Lat</th><th>Lon</th><th>SST °C</th><th>Time</th></tr>${rows}</table>
+         <div class="sub" style="margin-top:8px;">Showing ${Math.min(20,o.data.length)} of ${o.data.length} points. Updated ${o.updatedAt}.</div>`
+      : `<span class="err">No SST points returned — check server logs / ERDDAP dataset ID.</span>`;
+  } catch (e) {
+    document.getElementById('ocean').innerHTML = `<span class="err">Ocean fetch failed: ${e.message}</span>`;
+  }
+}
+load();
+</script>
+</body>
+</html>
