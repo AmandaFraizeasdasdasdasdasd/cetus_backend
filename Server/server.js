@@ -170,7 +170,7 @@ app.get('/api/status', (req, res) => {
   });
 });
 
-app.use(express.static('../public'));
+app.use(express.static('../Public'));
 
 app.listen(PORT, async () => {
   console.log(`Cetus backend listening on :${PORT}`);
