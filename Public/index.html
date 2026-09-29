@@ -125,7 +125,7 @@
     <span class="tag">Satellite-linked whale monitoring</span>
     <span class="live-badge"><span class="live-dot"></span>LIVE DATA</span>
   </div>
-  <div class="meta">North Atlantic humpback corridor<br>Updated <span id="dataUpdated" class="mono">—</span></div>
+  <div class="meta">Worldwide humpback sightings<br>Updated <span id="dataUpdated" class="mono">—</span></div>
 </header>
 
 <main>
@@ -135,7 +135,7 @@
   </div>
 
   <div class="panel map-wrap">
-    <div class="panel-head"><span>Migration corridor · Gulf of Maine → Silver Bank</span><span class="mono" id="mapCoords">—</span></div>
+    <div class="panel-head"><span>Live sightings map · worldwide</span><span class="mono" id="mapCoords">—</span></div>
     <svg id="mapSvg" viewBox="0 0 640 520" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
 
@@ -149,7 +149,7 @@
   </div>
 
   <div class="panel trend-panel">
-    <div class="panel-head"><span>Regional population index · Gulf of Maine feeding aggregation</span><span class="mono">2016–2026</span></div>
+    <div class="panel-head"><span>Population index — Gulf of Maine (illustrative example)</span><span class="mono">2016–2026</span></div>
     <div class="trend-body">
       <div><svg id="trendSvg" viewBox="0 0 760 200" preserveAspectRatio="none" style="width:100%; height:200px;"></svg></div>
       <div>
@@ -254,7 +254,7 @@ const seismicZone = {
   label:'Sample lease block · illustrative'
 };
 
-const mapBounds = {latMin:18, latMax:45, lonMin:-80, lonMax:-66};
+const mapBounds = {latMin:-70, latMax:80, lonMin:-180, lonMax:180};
 const mapW = 640, mapH = 520, mapPad = 40;
 function project(lat, lon){
   const x = mapPad + ( (lon - mapBounds.lonMin) / (mapBounds.lonMax - mapBounds.lonMin) ) * (mapW - mapPad*2);
@@ -287,30 +287,24 @@ function drawMap(){
   const svg = document.getElementById('mapSvg');
   svg.innerHTML = '';
 
-  for(let lat=20; lat<=45; lat+=5){
+  for(let lat=-60; lat<=80; lat+=20){
     const [x1,y1] = project(lat, mapBounds.lonMin);
     const [x2,y2] = project(lat, mapBounds.lonMax);
     svg.appendChild(svgEl('line',{x1,y1,x2,y2,class:'grid-line'}));
-    const lbl = svgEl('text',{x:6,y:y1+3,class:'axis-label'}); lbl.textContent = lat+'°N';
+    const lbl = svgEl('text',{x:6,y:y1+3,class:'axis-label'}); lbl.textContent = (lat>=0?lat+'°N':(-lat)+'°S');
     svg.appendChild(lbl);
   }
-  for(let lon=-80; lon<=-66; lon+=4){
+  for(let lon=-180; lon<=180; lon+=30){
     const [x1,y1] = project(mapBounds.latMin, lon);
     const [x2,y2] = project(mapBounds.latMax, lon);
     svg.appendChild(svgEl('line',{x1,y1,x2,y2,class:'grid-line'}));
-    const lbl = svgEl('text',{x:x1-10,y:mapH-8,class:'axis-label'}); lbl.textContent = lon+'°W';
+    const lbl = svgEl('text',{x:x1-10,y:mapH-8,class:'axis-label'}); lbl.textContent = (lon>=0?lon+'°E':(-lon)+'°W');
     svg.appendChild(lbl);
   }
-
-  const coastNE = 'M 40,40 L 120,55 L 150,120 L 130,190 L 100,230 L 70,260 L 55,320 L 40,320 Z';
-  const coastSE = 'M 55,320 L 100,340 L 140,400 L 150,460 L 110,480 L 60,480 L 45,420 Z';
-  svg.appendChild(svgEl('path',{d:coastNE, class:'coast'}));
-  svg.appendChild(svgEl('path',{d:coastSE, class:'coast'}));
-  const [ix,iy] = project(19.5,-70.5);
-  svg.appendChild(svgEl('ellipse',{cx:ix+10, cy:iy+18, rx:34, ry:9, class:'coast'}));
-  const regionLbl1 = svgEl('text',{x:150,y:60,class:'region-label'}); regionLbl1.textContent='Gulf of Maine';
-  const regionLbl2 = svgEl('text',{x:ix-30,y:iy+40,class:'region-label'}); regionLbl2.textContent='Silver Bank';
-  svg.appendChild(regionLbl1); svg.appendChild(regionLbl2);
+  // equator reference line
+  const [eqx1,eqy1] = project(0, mapBounds.lonMin);
+  const [eqx2,eqy2] = project(0, mapBounds.lonMax);
+  svg.appendChild(svgEl('line',{x1:eqx1,y1:eqy1,x2:eqx2,y2:eqy2, class:'grid-line', 'stroke-dasharray':'2 3'}));
 
   occurrences.forEach(o=>{
     if(o.lat==null || o.lon==null) return;
