@@ -100,7 +100,8 @@ async function fetchSeaSurfaceTemp() {
   // Samples SST on a coarse grid across the bounding box. ERDDAP griddap
   // queries take [(time)][(lat)][(lon)] ranges; adjust stride/step as
   // needed once you've confirmed the dataset's actual grid resolution.
-  const latStep = 2, lonStep = 2;
+  const latStep = parseInt(process.env.ERDDAP_LAT_STRIDE || '40', 10);
+  const lonStep = parseInt(process.env.ERDDAP_LON_STRIDE || '40', 10);
   const points = [];
   const url =
     `${ERDDAP_BASE_URL}/griddap/${ERDDAP_DATASET_ID}.json` +
