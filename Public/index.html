@@ -20,6 +20,9 @@
     --coral:#E2704F;
     --grid:#163243;
     --land:#1C3040;
+    --sma:#5B8DEF;
+    --mpa:#4FA36A;
+    --paddd:#C9584F;
   }
   html,body{height:100%;}
   *{box-sizing:border-box;}
@@ -113,6 +116,15 @@
   .source-list li:first-child{border-top:none;}
 
   .zone-btn{background:var(--bg-panel-raised); color:var(--coral); border:1px solid var(--coral); border-radius:20px; padding:4px 12px; font-size:11px; cursor:pointer;}
+  .layer-toggles{display:flex; flex-wrap:wrap; gap:4px 14px; padding:9px 14px; border-bottom:1px solid var(--line); background:var(--bg-panel);}
+  .layer-toggle{display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--ink-dim); cursor:pointer;}
+  .layer-toggle input{accent-color:var(--teal); cursor:pointer;}
+  .sma-zone{fill:var(--sma); opacity:0.2; stroke:var(--sma); stroke-width:0.7;}
+  .sma-zone.hidden{display:none;}
+  .mpa-zone{fill:var(--mpa); opacity:0.18; stroke:var(--mpa); stroke-width:0.6;}
+  .mpa-zone.hidden{display:none;}
+  .paddd-zone{fill:var(--paddd); opacity:0.22; stroke:var(--paddd); stroke-width:0.8; stroke-dasharray:3 2;}
+  .paddd-zone.hidden{display:none;}
   .zone-btn.on{background:var(--coral); color:var(--bg-panel);}
   .drilling-body{padding:16px; display:grid; grid-template-columns:1fr 1fr; gap:24px;}
   @media (max-width:700px){.drilling-body{grid-template-columns:1fr;}}
@@ -170,6 +182,12 @@
 
   <div class="panel map-wrap">
     <div class="panel-head"><span>Live sightings map · worldwide</span><span class="mono" id="mapCoords">—</span></div>
+    <div class="layer-toggles">
+      <label class="layer-toggle"><input type="checkbox" id="toggleLeases"><span>GOM drilling leases</span></label>
+      <label class="layer-toggle"><input type="checkbox" id="toggleSMA"><span>Right whale speed zones</span></label>
+      <label class="layer-toggle"><input type="checkbox" id="toggleMPA"><span>MPA boundaries</span></label>
+      <label class="layer-toggle"><input type="checkbox" id="togglePADDD"><span>Documented downgrades</span></label>
+    </div>
     <svg id="mapSvg" viewBox="0 0 640 520" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
 
@@ -217,7 +235,6 @@
   <div class="panel trend-panel" id="drillingPanel">
     <div class="panel-head">
       <span>Ocean drilling &amp; seismic survey exposure</span>
-      <button id="toggleZone" class="zone-btn mono">Show lease areas on map</button>
     </div>
     <div class="drilling-body">
       <div class="drilling-col">
@@ -265,6 +282,27 @@
     </div>
   </div>
 
+  <div class="panel trend-panel" id="padddPanel">
+    <div class="panel-head"><span>Documented protection downgrades — is this area still protected the way it used to be?</span><span class="mono" id="padddCount">—</span></div>
+    <div class="drilling-body">
+      <div class="drilling-col">
+        <h3>What this shows</h3>
+        <p class="trend-note">This uses real, peer-reviewed research data from <b>PADDDtracker.org</b> (Conservation International &amp; World Wildlife Fund), documenting legal downgrades, downsizes, and eliminations of protected areas worldwide.</p>
+        <p class="trend-note" style="margin-top:8px;"><b>Scope, stated plainly:</b> the marine-specific subset available covers <b>Australia's 2018 Commonwealth Marine Reserve rezoning</b> — a real, well-documented, large-scale case — not a comprehensive global feed of every marine protection change everywhere. A sighting elsewhere in the world will never show a match here, not because nothing happened there, but because this dataset doesn't cover it.</p>
+        <p class="trend-note" style="margin-top:8px;">Of the 111 zones in this dataset, <b>46 show a measurable loosening</b> of protection level by zone type; others were actually tightened as part of the same rezoning — a mixed picture, not a uniform rollback.</p>
+      </div>
+      <div class="drilling-col">
+        <h3>Required citation</h3>
+        <p class="trend-note" id="padddCitation" style="font-style:italic;">Loading…</p>
+        <ul class="source-list">
+          <li>Toggle "Documented downgrades" on the map to see the affected zones</li>
+          <li>Any sighting inside one is flagged directly in its detail panel</li>
+          <li>Data is bundled (static), not a live feed — it reflects the dataset as published, May 2021</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
   <div class="panel trend-panel" id="captivityPanel">
     <div class="panel-head"><span>Whales in captivity — current status</span><span class="mono">~54 orcas worldwide</span></div>
     <div class="drilling-body">
@@ -299,6 +337,9 @@ let occurrences = [];
 let oceanPoints = [];
 let selectedId = null;
 let zoneVisible = false;
+let smaVisible = false;
+let mpaVisible = false;
+let padddVisible = false;
 let selectedSpecies = new Set();
 let selectedRegion = 'all';
 let onlyAnomalies = false;
@@ -396,6 +437,10 @@ function populateFilterControls(){
 
 let leasePolygons = [];
 let landPolygons = [];
+let smaPolygons = [];
+let mpaPolygons = [];
+let padddZones = [];
+let padddMeta = { citation: null, scope: null, count: 0 };
 
 const mapBounds = {latMin:-70, latMax:80, lonMin:-180, lonMax:180};
 const mapW = 640, mapH = 520, mapPad = 40;
@@ -440,15 +485,28 @@ function pointInRing(lat, lon, ring){
 function isInAnyLease(lat, lon){
   return leasePolygons.some(p => pointInRing(lat, lon, p.ring));
 }
-// Precomputes SST (current + historical-from-backend) and lease-area
+function findMatchingZone(lat, lon, polygons){
+  return polygons.find(p => pointInRing(lat, lon, p.ring)) || null;
+}
+// Precomputes SST (current + historical-from-backend) and polygon-area
 // membership once per data load, rather than on every render -- nearestSST
-// scans every ocean grid point, and the polygon test runs against every
-// lease polygon, both too slow to repeat per filter click.
+// scans every ocean grid point, and each polygon test runs against every
+// shape in that layer, both too slow to repeat per filter click.
 function annotateOccurrences(){
   allOccurrences.forEach(o=>{
     const sst = nearestSST(o.lat, o.lon);
     o._sst = sst ? sst.sstCelsius : null;
     o._inLeaseArea = isInAnyLease(o.lat, o.lon);
+    const sma = findMatchingZone(o.lat, o.lon, smaPolygons);
+    o._inRightWhaleSMA = !!sma;
+    o._smaName = sma ? sma.id : null;
+    const mpa = findMatchingZone(o.lat, o.lon, mpaPolygons);
+    o._inMPA = !!mpa;
+    o._mpaName = mpa ? mpa.id : null;
+    o._mpaProtectionLevel = mpa ? mpa.protectionLevel : null;
+    const paddd = findMatchingZone(o.lat, o.lon, padddZones);
+    o._inPADDDZone = !!paddd;
+    o._padddEvent = paddd || null;
   });
 }
 
@@ -487,15 +545,21 @@ function drawMap(){
   const [eqx2,eqy2] = project(0, mapBounds.lonMax);
   svg.appendChild(svgEl('line',{x1:eqx1,y1:eqy1,x2:eqx2,y2:eqy2, class:'grid-line', 'stroke-dasharray':'2 3'}));
 
-  if(zoneVisible){
-    leasePolygons.forEach(p=>{
+  function drawRingLayer(polygons, visible, className){
+    if(!visible) return;
+    polygons.forEach(p=>{
+      if(!p.ring || p.ring.length < 3) return;
       const d = p.ring.map((pt,i)=>{
         const [x,y] = project(pt[1], pt[0]); // ring points are [lon,lat]
         return (i===0?'M':'L') + x.toFixed(1) + ',' + y.toFixed(1);
       }).join(' ') + ' Z';
-      svg.appendChild(svgEl('path',{d, class:'lease-zone'}));
+      svg.appendChild(svgEl('path',{d, class:className}));
     });
   }
+  drawRingLayer(leasePolygons, zoneVisible, 'lease-zone');
+  drawRingLayer(smaPolygons, smaVisible, 'sma-zone');
+  drawRingLayer(mpaPolygons, mpaVisible, 'mpa-zone');
+  drawRingLayer(padddZones, padddVisible, 'paddd-zone');
 
   occurrences.forEach(o=>{
     if(o.lat==null || o.lon==null) return;
@@ -615,6 +679,9 @@ function renderDetail(){
     <div class="kv"><span class="k">SST on sighting date</span><span class="v">${o.historicalSstCelsius!=null ? o.historicalSstCelsius.toFixed(1)+'°C' : '— (outside history window)'}</span></div>
     <div class="kv"><span class="k">Current SST here</span><span class="v">${o._sst!=null ? o._sst.toFixed(1)+'°C' : '—'}</span></div>
     <div class="kv"><span class="k">In active GOM lease area</span><span class="v">${o._inLeaseArea ? 'Yes' : 'No'}</span></div>
+    <div class="kv"><span class="k">Right whale speed zone</span><span class="v">${o._inRightWhaleSMA ? (o._smaName || 'Yes') : 'No'}</span></div>
+    <div class="kv"><span class="k">Marine Protected Area</span><span class="v">${o._inMPA ? (o._mpaName || 'Yes') : 'No'}</span></div>
+    ${o._inPADDDZone ? `<div class="anomaly-note" style="border-color:var(--paddd); background:rgba(201,88,79,0.12); color:var(--paddd);">⚠ In a documented protection-change zone — ${o._padddEvent.name} (${o._padddEvent.year}): ${o._padddEvent.zonePreLabel} → ${o._padddEvent.zonePostLabel}${o._padddEvent.protectionLoosened ? ' (protection loosened)' : ''}</div>` : ''}
   `;
 }
 
@@ -719,10 +786,29 @@ async function loadData(){
     const ld = await res4.json();
     landPolygons = ld.data || [];
   } catch(e){ /* non-fatal — map just shows without coastlines */ }
+  try {
+    const res5 = await fetch('/api/right-whale-sma');
+    const sma = await res5.json();
+    smaPolygons = sma.data || [];
+  } catch(e){ /* non-fatal — SMA flags just show as No */ }
+  try {
+    const res6 = await fetch('/api/mpa-boundaries');
+    const mpa = await res6.json();
+    mpaPolygons = mpa.data || [];
+  } catch(e){ /* non-fatal — MPA flags just show as No */ }
+  try {
+    const res7 = await fetch('/api/paddd');
+    const pd = await res7.json();
+    padddZones = pd.data || [];
+    padddMeta = { citation: pd.citation, scope: pd.scope, count: pd.count };
+    document.getElementById('padddCount').textContent = padddMeta.count + ' zones';
+    document.getElementById('padddCitation').textContent = padddMeta.citation || '—';
+  } catch(e){ /* non-fatal — PADDD panel just shows as unavailable */ }
 
-  // Order matters: annotate (needs oceanPoints + leasePolygons already
+  // Order matters: annotate (needs oceanPoints + all polygon layers already
   // loaded) before anomaly detection and filter population, so every
-  // downstream view has _sst/_inLeaseArea/historicalSstCelsius available.
+  // downstream view has _sst/_inLeaseArea/_inRightWhaleSMA/_inMPA/
+  // _inPADDDZone/historicalSstCelsius available.
   annotateOccurrences();
   computeAnomalies();
   populateFilterControls();
@@ -737,10 +823,20 @@ document.getElementById('onlyAnomaliesCheck').addEventListener('change', (e)=>{
   applyFilters(); render();
 });
 
-document.getElementById('toggleZone').addEventListener('click', (e)=>{
-  zoneVisible = !zoneVisible;
-  e.target.textContent = zoneVisible ? 'Hide survey zone' : 'Show survey zone on map';
-  e.target.classList.toggle('on', zoneVisible);
+document.getElementById('toggleLeases').addEventListener('change', (e)=>{
+  zoneVisible = e.target.checked;
+  drawMap();
+});
+document.getElementById('toggleSMA').addEventListener('change', (e)=>{
+  smaVisible = e.target.checked;
+  drawMap();
+});
+document.getElementById('toggleMPA').addEventListener('change', (e)=>{
+  mpaVisible = e.target.checked;
+  drawMap();
+});
+document.getElementById('togglePADDD').addEventListener('change', (e)=>{
+  padddVisible = e.target.checked;
   drawMap();
 });
 
