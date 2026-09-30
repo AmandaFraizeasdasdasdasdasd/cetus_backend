@@ -13,6 +13,8 @@
     "node-fetch": "^2.7.0",
     "node-cron": "^3.0.3",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "world-atlas": "^2.0.2",
+    "topojson-client": "^3.1.0"
   }
 }
