@@ -29,6 +29,8 @@ const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const cron = require('node-cron');
+const topojson = require('topojson-client');
+const worldLandTopology = require('world-atlas/land-110m.json');
 
 const app = express();
 app.use(cors());
@@ -236,6 +238,38 @@ function attachHistoricalSST(occurrences, monthlySST) {
 }
 
 // ---- BOEM: active Gulf of Mexico oil & gas lease polygons --------------
+// ---- World coastlines (static, bundled -- not a live fetch) ------------
+// Uses the world-atlas npm package (real Natural Earth 1:110m land data,
+// installed at build time) rather than fetching from a live URL. Land
+// doesn't move day to day, so there's nothing to refresh, and it avoids
+// depending on the uptime of yet another external service.
+function buildLandOutlines() {
+  const landObject = worldLandTopology.objects.land;
+  const result = topojson.feature(worldLandTopology, landObject);
+  const features = result.type === 'FeatureCollection' ? result.features : [result];
+  const outlines = [];
+  features.forEach(f => {
+    const geom = f.geometry;
+    if (!geom) return;
+    if (geom.type === 'Polygon') {
+      outlines.push(geom.coordinates[0]);
+    } else if (geom.type === 'MultiPolygon') {
+      geom.coordinates.forEach(poly => outlines.push(poly[0]));
+    }
+  });
+  return outlines;
+}
+
+let LAND_OUTLINES = [];
+let LAND_BUILT_AT = null;
+try {
+  LAND_OUTLINES = buildLandOutlines();
+  LAND_BUILT_AT = new Date().toISOString();
+  console.log(`[land] built ${LAND_OUTLINES.length} coastline shapes from world-atlas`);
+} catch (err) {
+  console.error('[land] failed to build coastline outlines:', err.message || err);
+}
+
 async function fetchDrillingLeases() {
   console.log('[leases] requesting:', BOEM_LEASES_URL);
   const res = await fetch(BOEM_LEASES_URL, {
@@ -338,6 +372,13 @@ app.get('/api/leases', (req, res) => {
   res.json(cache.drillingLeases);
 });
 
+app.get('/api/land', (req, res) => {
+  res.json({
+    updatedAt: LAND_BUILT_AT,
+    data: LAND_OUTLINES.map(ring => ({ ring })),
+  });
+});
+
 app.get('/api/status', (req, res) => {
   res.json({
     bbox: BBOX,
@@ -354,6 +395,10 @@ app.get('/api/status', (req, res) => {
       updatedAt: cache.drillingLeases.updatedAt,
       count: cache.drillingLeases.data.length,
       scope: 'BOEM Gulf of Mexico active leases only — not US-wide or global',
+    },
+    landOutlines: {
+      builtAt: LAND_BUILT_AT,
+      count: LAND_OUTLINES.length,
     },
     note: 'No continuous single-whale tracks here — that needs an Argos data-sharing agreement.',
   });
