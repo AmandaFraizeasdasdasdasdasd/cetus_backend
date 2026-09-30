@@ -86,7 +86,45 @@ const cache = {
   drillingLeases: { updatedAt: null, data: [] },
   rightWhaleSMA: { updatedAt: null, data: [] },
   mpaBoundaries: { updatedAt: null, data: [] },
+  speciesImages: { updatedAt: null, data: {} },
 };
+
+// ---- Wikipedia: one representative image per tracked species -----------
+// Fetches dynamically for whatever's in SPECIES_LIST, so adding a new
+// species to track (via the env var) automatically picks up an image --
+// no hardcoded per-species list to maintain. Wikipedia's REST summary API
+// follows redirects, so a scientific binomial name (e.g. "Megaptera
+// novaeangliae") correctly resolves to the common-name article and its
+// lead image in essentially all cases for well-known species.
+async function fetchSpeciesImage(scientificName) {
+  const title = encodeURIComponent(scientificName.trim().replace(/ /g, '_'));
+  const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${title}`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'CetusBackend/0.1 (whale monitoring dashboard)' },
+  });
+  if (!res.ok) throw new Error(`Wikipedia summary request failed: ${res.status}`);
+  const body = await res.json();
+  const image = body.thumbnail || body.originalimage || null;
+  return {
+    imageUrl: image ? image.source : null,
+    pageUrl: (body.content_urls && body.content_urls.desktop && body.content_urls.desktop.page) || null,
+    commonName: body.title || scientificName,
+  };
+}
+
+async function fetchAllSpeciesImages() {
+  const result = {};
+  for (const species of SPECIES_LIST) {
+    try {
+      result[species] = await fetchSpeciesImage(species);
+      console.log(`[species-image] ${species} -> ${result[species].imageUrl ? 'found' : 'no image on page'}`);
+    } catch (err) {
+      console.error(`[species-image] failed for ${species}:`, err.message || err);
+      result[species] = { imageUrl: null, pageUrl: null, commonName: species };
+    }
+  }
+  return result;
+}
 
 // ---- OBIS: whale occurrence / telemetry records -----------------------
 // Queries OBIS once per species in SPECIES_LIST and merges the results.
@@ -370,8 +408,8 @@ async function fetchMPABoundaries() {
     features,
     props => props.Site_Name || props.SITE_NAME || props.NAME || null,
     props => ({
-      protectionLevel: props.Protection_Level || props.PROTECTION_LEVEL || null,
-      designationType: props.Designation_Type || props.DESIGNATION_TYPE || null,
+      protectionLevel: props.Prot_Lvl || null,
+      governanceLevel: props.Gov_Level || null,
     })
   );
 }
@@ -485,6 +523,10 @@ app.get('/api/paddd', (req, res) => {
   });
 });
 
+app.get('/api/species-images', (req, res) => {
+  res.json(cache.speciesImages);
+});
+
 app.get('/api/land', (req, res) => {
   res.json({
     updatedAt: LAND_BUILT_AT,
@@ -536,5 +578,15 @@ app.use(express.static('../Public'));
 app.listen(PORT, async () => {
   console.log(`Cetus backend listening on :${PORT}`);
   await refreshAll(); // populate cache on boot
+
+  // Species images are essentially static -- fetch once at startup rather
+  // than on every refresh cycle, to avoid hammering Wikipedia needlessly.
+  try {
+    cache.speciesImages.data = await fetchAllSpeciesImages();
+    cache.speciesImages.updatedAt = new Date().toISOString();
+  } catch (err) {
+    console.error('[species-image] batch fetch failed:', err.message || err);
+  }
+
   cron.schedule(`*/${REFRESH_MINUTES} * * * *`, refreshAll);
 });
