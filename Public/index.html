@@ -19,6 +19,7 @@
     --amber:#E7A23D;
     --coral:#E2704F;
     --grid:#163243;
+    --land:#1C3040;
   }
   html,body{height:100%;}
   *{box-sizing:border-box;}
@@ -86,7 +87,7 @@
   .map-wrap{padding:0; position:relative;}
   svg{display:block; width:100%; height:auto;}
   .grid-line{stroke:var(--grid); stroke-width:1;}
-  .coast{fill:var(--line-soft); opacity:0.7;}
+  .coast{fill:var(--land); stroke:var(--line); stroke-width:0.4;}
   .occ-dot{fill:var(--ink-faint); opacity:0.5;}
   .occ-dot.active{fill:var(--teal);}
   .pulse{fill:none; stroke:var(--teal); stroke-width:1.5; opacity:0.8; transform-origin:center; animation:pulse 2.2s ease-out infinite;}
@@ -394,6 +395,7 @@ function populateFilterControls(){
 }
 
 let leasePolygons = [];
+let landPolygons = [];
 
 const mapBounds = {latMin:-70, latMax:80, lonMin:-180, lonMax:180};
 const mapW = 640, mapH = 520, mapPad = 40;
@@ -453,6 +455,18 @@ function annotateOccurrences(){
 function drawMap(){
   const svg = document.getElementById('mapSvg');
   svg.innerHTML = '';
+
+  // Land outlines render first so the grid, lease areas, and whale
+  // sightings all draw on top of them.
+  landPolygons.forEach(p=>{
+    const ring = p.ring;
+    if(!ring || ring.length < 3) return;
+    const d = ring.map((pt,i)=>{
+      const [x,y] = project(pt[1], pt[0]); // ring points are [lon,lat]
+      return (i===0?'M':'L') + x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ') + ' Z';
+    svg.appendChild(svgEl('path',{d, class:'coast'}));
+  });
 
   for(let lat=-60; lat<=80; lat+=20){
     const [x1,y1] = project(lat, mapBounds.lonMin);
@@ -700,6 +714,11 @@ async function loadData(){
     const l = await res3.json();
     leasePolygons = l.data || [];
   } catch(e){ /* non-fatal — lease-area flags just show as No */ }
+  try {
+    const res4 = await fetch('/api/land');
+    const ld = await res4.json();
+    landPolygons = ld.data || [];
+  } catch(e){ /* non-fatal — map just shows without coastlines */ }
 
   // Order matters: annotate (needs oceanPoints + leasePolygons already
   // loaded) before anomaly detection and filter population, so every
