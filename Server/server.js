@@ -59,7 +59,7 @@ const SST_HISTORY_MONTHS = parseInt(process.env.SST_HISTORY_MONTHS || '13', 10);
 // Esri REST services occasionally get reorganized.
 // Browsable at: https://services1.arcgis.com/qr14biwnHA6Vis6l/ArcGIS/rest/services/Platforms_Pipelines_ActiveLease/FeatureServer
 const BOEM_LEASES_URL = process.env.BOEM_LEASES_URL ||
-  'https://services1.arcgis.com/qr14biwnHA6Vis6l/ArcGIS/rest/services/Platforms_Pipelines_ActiveLease/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson';
+  'https://services1.arcgis.com/qr14biwnHA6Vis6l/ArcGIS/rest/services/Platforms_Pipelines_ActiveLease/FeatureServer/2/query?where=1%3D1&outFields=*&outSR=4326&f=geojson';
 
 // ---- in-memory cache -------------------------------------------------
 // Swap this for a real database (Postgres, SQLite, etc.) once this is
@@ -248,7 +248,23 @@ async function fetchDrillingLeases() {
     throw new Error(`BOEM leases request failed: ${res.status}`);
   }
   const geojson = await res.json();
+
+  // Esri REST sometimes returns a 200 with an error payload instead of an
+  // HTTP error status (e.g. {"error":{"code":400,"message":"..."}})  --
+  // catch that case explicitly so it doesn't silently look like "0 leases".
+  if (geojson.error) {
+    console.error('[leases] Esri returned an error payload:', JSON.stringify(geojson.error).slice(0, 500));
+    throw new Error(`BOEM leases API error: ${geojson.error.message || JSON.stringify(geojson.error)}`);
+  }
+
   const features = geojson.features || [];
+  console.log(`[leases] raw features in response: ${features.length}`);
+  if (features.length === 0) {
+    console.log('[leases] full response (first 800 chars):', JSON.stringify(geojson).slice(0, 800));
+  } else {
+    console.log('[leases] first feature geometry type:', features[0].geometry && features[0].geometry.type);
+    console.log('[leases] first feature properties keys:', Object.keys(features[0].properties || {}).slice(0, 15));
+  }
 
   // Normalize to a lightweight shape: just an outer ring of [lon,lat]
   // pairs per polygon, dropping most attribute fields to keep the
