@@ -25,6 +25,8 @@
  */
 
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
@@ -63,6 +65,17 @@ const SST_HISTORY_MONTHS = parseInt(process.env.SST_HISTORY_MONTHS || '13', 10);
 const BOEM_LEASES_URL = process.env.BOEM_LEASES_URL ||
   'https://services1.arcgis.com/qr14biwnHA6Vis6l/ArcGIS/rest/services/Platforms_Pipelines_ActiveLease/FeatureServer/2/query?where=1%3D1&outFields=*&outSR=4326&f=geojson';
 
+// NOAA Fisheries' own public GIS service for North Atlantic Right Whale
+// Seasonal Management Areas -- real mandatory vessel speed-restriction
+// zones, not a sample. Covers the US Atlantic seaboard only.
+const RIGHT_WHALE_SMA_URL = process.env.RIGHT_WHALE_SMA_URL ||
+  'https://services2.arcgis.com/C8EMgrsFcRFL6LrL/arcgis/rest/services/Seasonal_Management_Areas/FeatureServer/3/query?where=1%3D1&outFields=*&outSR=4326&f=geojson';
+
+// NOAA's Marine Protected Areas Inventory -- real US MPA boundaries with
+// protection-level classification. US-only, like the two above.
+const MPA_BOUNDARIES_URL = process.env.MPA_BOUNDARIES_URL ||
+  'https://services1.arcgis.com/eGSDp8lpKe5izqVc/ArcGIS/rest/services/Marine_Protected_Areas__MPAIs_/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson';
+
 // ---- in-memory cache -------------------------------------------------
 // Swap this for a real database (Postgres, SQLite, etc.) once this is
 // past the prototype stage -- an in-memory cache resets on every deploy
@@ -71,6 +84,8 @@ const cache = {
   whaleOccurrences: { updatedAt: null, data: [] },
   seaSurfaceTemp: { updatedAt: null, data: [] },
   drillingLeases: { updatedAt: null, data: [] },
+  rightWhaleSMA: { updatedAt: null, data: [] },
+  mpaBoundaries: { updatedAt: null, data: [] },
 };
 
 // ---- OBIS: whale occurrence / telemetry records -----------------------
@@ -270,54 +285,119 @@ try {
   console.error('[land] failed to build coastline outlines:', err.message || err);
 }
 
-async function fetchDrillingLeases() {
-  console.log('[leases] requesting:', BOEM_LEASES_URL);
-  const res = await fetch(BOEM_LEASES_URL, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CetusBackend/0.1)' },
-  });
-  console.log('[leases] response status:', res.status, res.statusText);
-  if (!res.ok) {
-    const bodyText = await res.text();
-    console.log('[leases] error body:', bodyText.slice(0, 500));
-    throw new Error(`BOEM leases request failed: ${res.status}`);
+// ---- Generic Esri REST FeatureServer fetcher, with pagination ----------
+// Esri services cap how many features one query returns (often 1000-2000).
+// Loops with resultOffset until a page comes back smaller than requested,
+// so a dataset bigger than one page's limit doesn't get silently truncated.
+async function fetchEsriFeaturesAll(baseUrl, label, pageSize = 1000) {
+  let allFeatures = [];
+  let offset = 0;
+  const sep = baseUrl.includes('?') ? '&' : '?';
+  while (true) {
+    const url = `${baseUrl}${sep}resultOffset=${offset}&resultRecordCount=${pageSize}`;
+    console.log(`[${label}] requesting offset ${offset}:`, url);
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CetusBackend/0.1)' },
+    });
+    console.log(`[${label}] response status:`, res.status, res.statusText);
+    if (!res.ok) {
+      const bodyText = await res.text();
+      console.log(`[${label}] error body:`, bodyText.slice(0, 500));
+      throw new Error(`${label} request failed: ${res.status}`);
+    }
+    const geojson = await res.json();
+    if (geojson.error) {
+      console.error(`[${label}] Esri returned an error payload:`, JSON.stringify(geojson.error).slice(0, 500));
+      throw new Error(`${label} API error: ${geojson.error.message || JSON.stringify(geojson.error)}`);
+    }
+    const features = geojson.features || [];
+    if (offset === 0) {
+      console.log(`[${label}] first feature geometry type:`, features[0] && features[0].geometry && features[0].geometry.type);
+      console.log(`[${label}] first feature properties keys:`, Object.keys((features[0] && features[0].properties) || {}).slice(0, 15));
+    }
+    allFeatures = allFeatures.concat(features);
+    if (features.length < pageSize) break; // last page
+    offset += pageSize;
+    if (offset > 20000) break; // safety cap against a runaway loop
   }
-  const geojson = await res.json();
+  console.log(`[${label}] total features across all pages: ${allFeatures.length}`);
+  return allFeatures;
+}
 
-  // Esri REST sometimes returns a 200 with an error payload instead of an
-  // HTTP error status (e.g. {"error":{"code":400,"message":"..."}})  --
-  // catch that case explicitly so it doesn't silently look like "0 leases".
-  if (geojson.error) {
-    console.error('[leases] Esri returned an error payload:', JSON.stringify(geojson.error).slice(0, 500));
-    throw new Error(`BOEM leases API error: ${geojson.error.message || JSON.stringify(geojson.error)}`);
-  }
-
-  const features = geojson.features || [];
-  console.log(`[leases] raw features in response: ${features.length}`);
-  if (features.length === 0) {
-    console.log('[leases] full response (first 800 chars):', JSON.stringify(geojson).slice(0, 800));
-  } else {
-    console.log('[leases] first feature geometry type:', features[0].geometry && features[0].geometry.type);
-    console.log('[leases] first feature properties keys:', Object.keys(features[0].properties || {}).slice(0, 15));
-  }
-
-  // Normalize to a lightweight shape: just an outer ring of [lon,lat]
-  // pairs per polygon, dropping most attribute fields to keep the
-  // response small (a lease area can have dozens of fields we don't use).
+// Normalizes Esri GeoJSON features to our lightweight { id, ring, ...extra }
+// shape -- one outer ring of [lon,lat] pairs per polygon part, dropping the
+// many attribute fields we don't use.
+function normalizePolygonFeatures(features, idFn, extraFn) {
   const polygons = [];
   features.forEach(f => {
     const geom = f.geometry;
     if (!geom) return;
     const props = f.properties || {};
-    const leaseId = props.LEASE_NUMB || props.LEASE_NUMBER || props.LEASE_NO || null;
+    const id = idFn ? idFn(props) : null;
+    const extra = extraFn ? extraFn(props) : {};
     if (geom.type === 'Polygon') {
-      polygons.push({ id: leaseId, ring: geom.coordinates[0] });
+      polygons.push({ id, ring: geom.coordinates[0], ...extra });
     } else if (geom.type === 'MultiPolygon') {
       geom.coordinates.forEach(poly => {
-        polygons.push({ id: leaseId, ring: poly[0] });
+        polygons.push({ id, ring: poly[0], ...extra });
       });
     }
   });
   return polygons;
+}
+
+async function fetchDrillingLeases() {
+  const features = await fetchEsriFeaturesAll(BOEM_LEASES_URL, 'leases');
+  return normalizePolygonFeatures(features, props =>
+    props.LEASE_NUMB || props.LEASE_NUMBER || props.LEASE_NO || null
+  );
+}
+
+async function fetchRightWhaleSMA() {
+  const features = await fetchEsriFeaturesAll(RIGHT_WHALE_SMA_URL, 'right-whale-sma');
+  return normalizePolygonFeatures(
+    features,
+    props => props.zone_name || props.ZONE_NAME || null,
+    props => ({
+      restrictedPeriod: props.restrictedperiod || props.RESTRICTEDPERIOD || null,
+    })
+  );
+}
+
+async function fetchMPABoundaries() {
+  const features = await fetchEsriFeaturesAll(MPA_BOUNDARIES_URL, 'mpa-boundaries');
+  return normalizePolygonFeatures(
+    features,
+    props => props.Site_Name || props.SITE_NAME || props.NAME || null,
+    props => ({
+      protectionLevel: props.Protection_Level || props.PROTECTION_LEVEL || null,
+      designationType: props.Designation_Type || props.DESIGNATION_TYPE || null,
+    })
+  );
+}
+
+// ---- PADDDtracker.org -- bundled, static (not a live fetch) -----------
+// Real, peer-reviewed research data on documented Protected Area
+// Downgrading, Downsizing, and Degazettement events, filtered to the
+// marine-zone subset. This is Australia's 2018 Commonwealth Marine
+// Reserve rezoning specifically -- a real, well-documented case -- not a
+// comprehensive global feed of every marine protection change everywhere.
+// Bundled as a static file (manually downloaded + converted from the
+// official Zenodo shapefile release) rather than fetched live, since
+// this is a fixed historical dataset, not something that changes daily.
+//
+// Required citation for this data (keep this attached wherever it's shown):
+// Conservation International, & World Wildlife Fund. (2021).
+// PADDDtracker Data Release Version 2.1. Zenodo.
+// https://doi.org/10.5281/zenodo.4974336
+const PADDD_CITATION = 'Conservation International & World Wildlife Fund (2021). PADDDtracker Data Release Version 2.1. Zenodo. https://doi.org/10.5281/zenodo.4974336';
+let PADDD_EVENTS = [];
+try {
+  const raw = fs.readFileSync(path.join(__dirname, 'data', 'paddd-mpa-events.json'), 'utf8');
+  PADDD_EVENTS = JSON.parse(raw);
+  console.log(`[paddd] loaded ${PADDD_EVENTS.length} documented protection-change events (bundled, static)`);
+} catch (err) {
+  console.error('[paddd] failed to load bundled PADDD dataset:', err.message || err);
 }
 
 // ---- refresh cycle ------------------------------------------------------
@@ -357,6 +437,22 @@ async function refreshAll() {
   } catch (err) {
     console.error('[refresh] BOEM leases fetch failed:', err.message || err);
   }
+
+  try {
+    cache.rightWhaleSMA.data = await fetchRightWhaleSMA();
+    cache.rightWhaleSMA.updatedAt = new Date().toISOString();
+    console.log(`[refresh] Right whale SMA: ${cache.rightWhaleSMA.data.length} polygons`);
+  } catch (err) {
+    console.error('[refresh] Right whale SMA fetch failed:', err.message || err);
+  }
+
+  try {
+    cache.mpaBoundaries.data = await fetchMPABoundaries();
+    cache.mpaBoundaries.updatedAt = new Date().toISOString();
+    console.log(`[refresh] MPA boundaries: ${cache.mpaBoundaries.data.length} polygons`);
+  } catch (err) {
+    console.error('[refresh] MPA boundaries fetch failed:', err.message || err);
+  }
 }
 
 // ---- API ------------------------------------------------------------
@@ -370,6 +466,23 @@ app.get('/api/ocean', (req, res) => {
 
 app.get('/api/leases', (req, res) => {
   res.json(cache.drillingLeases);
+});
+
+app.get('/api/right-whale-sma', (req, res) => {
+  res.json(cache.rightWhaleSMA);
+});
+
+app.get('/api/mpa-boundaries', (req, res) => {
+  res.json(cache.mpaBoundaries);
+});
+
+app.get('/api/paddd', (req, res) => {
+  res.json({
+    citation: PADDD_CITATION,
+    scope: "Australia's 2018 Commonwealth Marine Reserve rezoning specifically -- not a comprehensive global feed of every marine protection change.",
+    count: PADDD_EVENTS.length,
+    data: PADDD_EVENTS,
+  });
 });
 
 app.get('/api/land', (req, res) => {
@@ -395,6 +508,20 @@ app.get('/api/status', (req, res) => {
       updatedAt: cache.drillingLeases.updatedAt,
       count: cache.drillingLeases.data.length,
       scope: 'BOEM Gulf of Mexico active leases only — not US-wide or global',
+    },
+    rightWhaleSMA: {
+      updatedAt: cache.rightWhaleSMA.updatedAt,
+      count: cache.rightWhaleSMA.data.length,
+      scope: 'NOAA US Atlantic seaboard speed-restriction zones only',
+    },
+    mpaBoundaries: {
+      updatedAt: cache.mpaBoundaries.updatedAt,
+      count: cache.mpaBoundaries.data.length,
+      scope: 'NOAA US Marine Protected Areas Inventory — US only',
+    },
+    paddd: {
+      count: PADDD_EVENTS.length,
+      scope: "Bundled, static — Australia's 2018 Commonwealth Marine Reserve rezoning specifically",
     },
     landOutlines: {
       builtAt: LAND_BUILT_AT,
