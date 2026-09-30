@@ -59,7 +59,19 @@
   .panel{background:var(--bg-panel); border:1px solid var(--line); border-radius:3px; overflow:hidden;}
   .panel-head{padding:11px 14px; border-bottom:1px solid var(--line); font-size:12px; color:var(--ink-dim); display:flex; justify-content:space-between; align-items:center;}
 
-  .whale-list{max-height:520px; overflow-y:auto;}
+  .filter-bar{padding:10px 14px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:10px;}
+  .filter-label{font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-faint); margin-bottom:5px;}
+  .species-checks{display:flex; flex-direction:column; gap:4px;}
+  .species-check{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-dim); cursor:pointer;}
+  .species-check input{accent-color:var(--teal); cursor:pointer;}
+  .region-select{width:100%; background:var(--bg-panel-raised); color:var(--ink); border:1px solid var(--line); border-radius:3px; padding:5px 6px; font-size:12px;}
+  .anomaly-badge{color:var(--amber); font-size:11px;}
+  .anomaly-badge.hidden{display:none;}
+  .whale-row.anomaly{box-shadow:inset 3px 0 0 var(--amber);}
+  .whale-row.anomaly .id{color:var(--amber);}
+  .occ-dot.anomaly{fill:var(--amber); opacity:0.9;}
+  .anomaly-note{background:rgba(231,162,61,0.12); border:1px solid var(--amber); color:var(--amber); border-radius:3px; padding:8px 10px; font-size:12px; margin:0 14px 10px; line-height:1.5;}
+  .whale-list{max-height:400px; overflow-y:auto;}
   .whale-row{padding:11px 14px; display:flex; gap:10px; align-items:flex-start; cursor:pointer; border-bottom:1px solid var(--line-soft); transition:background 0.15s ease;}
   .whale-row:last-child{border-bottom:none;}
   .whale-row:hover{background:var(--bg-panel-raised);}
@@ -67,6 +79,7 @@
   .dot{width:8px;height:8px;border-radius:50%;flex:none;margin-top:5px;}
   .dot.recent{background:var(--teal);}
   .dot.older{background:var(--ink-faint);}
+  .dot.anomaly{background:var(--amber);}
   .whale-row .id{font-size:12.5px; font-weight:600;}
   .whale-row .sub{font-size:11px; color:var(--ink-faint); margin-top:2px;}
 
@@ -108,10 +121,8 @@
   .fact-list li:first-child{border-top:none;}
   .fact-list li::before{content:'—'; position:absolute; left:0; color:var(--coral);}
   .fact-list b{color:var(--ink);}
-  .seismic-zone{fill:var(--coral); opacity:0.14; stroke:var(--coral); stroke-width:1; stroke-dasharray:4 3;}
-  .seismic-zone.hidden{display:none;}
-  .seismic-label{font-size:9.5px; fill:var(--coral); font-family:'SFMono-Regular',monospace;}
-  .seismic-label.hidden{display:none;}
+  .lease-zone{fill:var(--coral); opacity:0.2; stroke:var(--coral); stroke-width:0.7;}
+  .lease-zone.hidden{display:none;}
 
   footer{max-width:1180px; margin:0 auto; padding:8px 20px 32px; font-size:11px; color:var(--ink-faint);}
   .loading{padding:20px; font-size:12px; color:var(--ink-faint); text-align:center;}
@@ -130,7 +141,29 @@
 
 <main>
   <div class="panel" id="whaleListPanel">
-    <div class="panel-head"><span>Recent occurrences (OBIS)</span><span class="mono" id="occCount">—</span></div>
+    <div class="panel-head">
+      <span>Recent occurrences (OBIS)</span>
+      <span style="display:flex; align-items:center; gap:8px;">
+        <span class="mono anomaly-badge hidden" id="anomalyBadge"></span>
+        <span class="mono" id="occCount">—</span>
+      </span>
+    </div>
+    <div class="filter-bar" id="filterBar">
+      <div class="filter-group">
+        <div class="filter-label">Species</div>
+        <div id="speciesFilters" class="species-checks"><span class="loading" style="padding:0;">—</span></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Region</div>
+        <select id="regionFilter" class="region-select">
+          <option value="all">All regions</option>
+        </select>
+      </div>
+      <label class="species-check" style="margin-top:2px;">
+        <input type="checkbox" id="onlyAnomaliesCheck">
+        <span>Show only unusual sightings</span>
+      </label>
+    </div>
     <div class="whale-list" id="whaleList"><div class="loading">Loading real data…</div></div>
   </div>
 
@@ -164,10 +197,26 @@
     </div>
   </div>
 
+  <div class="panel trend-panel" id="patternsPanel">
+    <div class="panel-head"><span>Looking for a "why" — temperature &amp; drilling-zone patterns</span></div>
+    <div class="trend-body">
+      <div>
+        <div class="chart-title"><span>Sea temperature on sighting date: unusual vs. typical locations, by region</span></div>
+        <svg id="sstCompareSvg" viewBox="0 0 460 220" preserveAspectRatio="xMidYMid meet" style="width:100%; height:220px;"></svg>
+        <div id="sstCompareNote" class="trend-note" style="margin-top:8px;"></div>
+      </div>
+      <div>
+        <p class="trend-note">Temperature is now matched to each sighting's own month (a monthly snapshot nearest that date, not the exact day) rather than today's conditions — a real improvement, though still not a day-exact match. This shows whether water was measurably warmer or cooler near unusual-location sightings than near typical ones — a pattern worth investigating, not proof of cause for any individual sighting.</p>
+        <div class="kv" style="margin-top:10px;"><span class="k">Sightings inside an active Gulf of Mexico lease area</span><span class="v" id="drillingProxCount">—</span></div>
+        <p class="trend-note" style="margin-top:8px;">This is real BOEM lease-boundary data, checked point-by-point against each sighting — but it only covers the Gulf of Mexico. A sighting elsewhere in the world will never show as "inside a lease" here, not because none exists, but because this feed doesn't cover that region.</p>
+      </div>
+    </div>
+  </div>
+
   <div class="panel trend-panel" id="drillingPanel">
     <div class="panel-head">
       <span>Ocean drilling &amp; seismic survey exposure</span>
-      <button id="toggleZone" class="zone-btn mono">Show survey zone on map</button>
+      <button id="toggleZone" class="zone-btn mono">Show lease areas on map</button>
     </div>
     <div class="drilling-body">
       <div class="drilling-col">
@@ -182,11 +231,11 @@
       <div class="drilling-col">
         <h3>Why this belongs on a tracking dashboard</h3>
         <p class="trend-note">Overlaying proposed or active survey/lease blocks against real occurrence data is how this becomes decision-useful rather than just descriptive — it shows whether a corridor a client cares about actually overlaps operational activity, and when.</p>
-        <p class="trend-note" style="margin-top:10px;">The map includes a sample lease block off the Carolina coast — roughly where Atlantic seismic surveys have historically been proposed — to demonstrate the overlay. Toggle it on to see it sit across the corridor.</p>
+        <p class="trend-note" style="margin-top:10px;">The map now overlays real active Gulf of Mexico oil &amp; gas lease boundaries from BOEM — toggle it on to see actual lease areas rather than an illustrative example. Coverage is still Gulf of Mexico only, not global.</p>
         <ul class="source-list">
           <li>Airgun behavioral-response findings — BRAHSS / Journal of Experimental Biology</li>
           <li>Species vulnerability &amp; stranding risk — Marine Conservation Research report for Greenpeace Nordic</li>
-          <li>Survey/lease block boundaries (live) — BOEM (US) or equivalent national regulator, not connected here</li>
+          <li>Lease boundaries — BOEM, live pipeline, Gulf of Mexico only</li>
         </ul>
       </div>
     </div>
@@ -244,15 +293,107 @@
 </footer>
 
 <script>
+let allOccurrences = [];
 let occurrences = [];
 let oceanPoints = [];
 let selectedId = null;
 let zoneVisible = false;
+let selectedSpecies = new Set();
+let selectedRegion = 'all';
+let onlyAnomalies = false;
 
-const seismicZone = {
-  bounds: {latMin:32.5, latMax:35.5, lonMin:-77.5, lonMax:-74.5},
-  label:'Sample lease block · illustrative'
-};
+// Rough, approximate ocean-basin classification from lat/lon -- good
+// enough for a filter dropdown, not a substitute for real basin polygons.
+function regionFor(lat, lon){
+  if(lat < -60) return 'Southern Ocean';
+  if(lat > 66.5) return 'Arctic Ocean';
+  if(lon >= -100 && lon < 20) return lat >= 0 ? 'North Atlantic' : 'South Atlantic';
+  if(lon >= 20 && lon < 147) return 'Indian Ocean';
+  return lat >= 0 ? 'North Pacific' : 'South Pacific';
+}
+
+// Flags a sighting as "unusual" when it falls in a region that species is
+// rarely seen in, based on the actual sightings in the current dataset --
+// not a hardcoded migration map. Needs at least 10 sightings for that
+// species before flagging anything, to avoid false positives on thin data.
+const ANOMALY_MIN_SAMPLE = 10;
+const ANOMALY_RARE_THRESHOLD = 0.05;
+
+function computeAnomalies(){
+  const bySpecies = {};
+  allOccurrences.forEach(o=>{
+    o._region = regionFor(o.lat, o.lon);
+    if(!o.species) return;
+    (bySpecies[o.species] = bySpecies[o.species] || []).push(o);
+  });
+  Object.values(bySpecies).forEach(list=>{
+    const total = list.length;
+    const regionCounts = {};
+    list.forEach(o=>{ regionCounts[o._region] = (regionCounts[o._region]||0) + 1; });
+    list.forEach(o=>{
+      const frac = regionCounts[o._region] / total;
+      if(total >= ANOMALY_MIN_SAMPLE && frac < ANOMALY_RARE_THRESHOLD){
+        o.anomaly = true;
+        o.anomalyReason = `Rare region for ${o.species} — only ${Math.round(frac*100)}% of its ${total} tracked sightings are in the ${o._region}`;
+      } else {
+        o.anomaly = false;
+        o.anomalyReason = null;
+      }
+    });
+  });
+}
+
+function applyFilters(){
+  occurrences = allOccurrences.filter(o => {
+    if(selectedSpecies.size && !selectedSpecies.has(o.species)) return false;
+    if(selectedRegion !== 'all' && regionFor(o.lat, o.lon) !== selectedRegion) return false;
+    if(onlyAnomalies && !o.anomaly) return false;
+    return true;
+  });
+  if(!occurrences.find(o=>o.id===selectedId)){
+    selectedId = occurrences.length ? occurrences[0].id : null;
+  }
+}
+
+function populateFilterControls(){
+  const speciesSet = [...new Set(allOccurrences.map(o=>o.species).filter(Boolean))].sort();
+  if(!selectedSpecies.size) speciesSet.forEach(s=>selectedSpecies.add(s)); // default: all selected
+  const speciesBox = document.getElementById('speciesFilters');
+  speciesBox.innerHTML = '';
+  speciesSet.forEach(sp=>{
+    const label = document.createElement('label');
+    label.className = 'species-check';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = selectedSpecies.has(sp);
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) selectedSpecies.add(sp); else selectedSpecies.delete(sp);
+      applyFilters(); render();
+    });
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(sp));
+    speciesBox.appendChild(label);
+  });
+
+  const regionSet = [...new Set(allOccurrences.map(o=>regionFor(o.lat,o.lon)))].sort();
+  const regionSelect = document.getElementById('regionFilter');
+  const prevValue = regionSelect.value;
+  regionSelect.innerHTML = '<option value="all">All regions</option>' +
+    regionSet.map(r=>`<option value="${r}">${r}</option>`).join('');
+  regionSelect.value = regionSet.includes(prevValue) ? prevValue : 'all';
+  regionSelect.onchange = ()=>{ selectedRegion = regionSelect.value; applyFilters(); render(); };
+
+  const anomalyCount = allOccurrences.filter(o=>o.anomaly).length;
+  const badge = document.getElementById('anomalyBadge');
+  if(anomalyCount > 0){
+    badge.textContent = `⚠ ${anomalyCount} unusual`;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+let leasePolygons = [];
 
 const mapBounds = {latMin:-70, latMax:80, lonMin:-180, lonMax:180};
 const mapW = 640, mapH = 520, mapPad = 40;
@@ -282,6 +423,32 @@ function nearestSST(lat, lon){
   }
   return best;
 }
+// Standard ray-casting point-in-polygon test. ring is [[lon,lat], ...].
+function pointInRing(lat, lon, ring){
+  let inside = false;
+  for(let i=0, j=ring.length-1; i<ring.length; j=i++){
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    const intersect = ((yi > lat) !== (yj > lat)) &&
+      (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+    if(intersect) inside = !inside;
+  }
+  return inside;
+}
+function isInAnyLease(lat, lon){
+  return leasePolygons.some(p => pointInRing(lat, lon, p.ring));
+}
+// Precomputes SST (current + historical-from-backend) and lease-area
+// membership once per data load, rather than on every render -- nearestSST
+// scans every ocean grid point, and the polygon test runs against every
+// lease polygon, both too slow to repeat per filter click.
+function annotateOccurrences(){
+  allOccurrences.forEach(o=>{
+    const sst = nearestSST(o.lat, o.lon);
+    o._sst = sst ? sst.sstCelsius : null;
+    o._inLeaseArea = isInAnyLease(o.lat, o.lon);
+  });
+}
 
 function drawMap(){
   const svg = document.getElementById('mapSvg');
@@ -306,20 +473,24 @@ function drawMap(){
   const [eqx2,eqy2] = project(0, mapBounds.lonMax);
   svg.appendChild(svgEl('line',{x1:eqx1,y1:eqy1,x2:eqx2,y2:eqy2, class:'grid-line', 'stroke-dasharray':'2 3'}));
 
+  if(zoneVisible){
+    leasePolygons.forEach(p=>{
+      const d = p.ring.map((pt,i)=>{
+        const [x,y] = project(pt[1], pt[0]); // ring points are [lon,lat]
+        return (i===0?'M':'L') + x.toFixed(1) + ',' + y.toFixed(1);
+      }).join(' ') + ' Z';
+      svg.appendChild(svgEl('path',{d, class:'lease-zone'}));
+    });
+  }
+
   occurrences.forEach(o=>{
     if(o.lat==null || o.lon==null) return;
     const isActive = o.id === selectedId;
     const [x,y] = project(o.lat, o.lon);
     if(isActive) svg.appendChild(svgEl('circle',{cx:x,cy:y,r:12,class:'pulse'}));
-    svg.appendChild(svgEl('circle',{cx:x,cy:y,r:isActive?4:2,class:'occ-dot'+(isActive?' active':'')}));
+    const cls = 'occ-dot' + (isActive?' active':'') + (o.anomaly?' anomaly':'');
+    svg.appendChild(svgEl('circle',{cx:x,cy:y,r:(isActive||o.anomaly)?4:2,class:cls}));
   });
-
-  const zb = seismicZone.bounds;
-  const [zx1,zy1] = project(zb.latMax, zb.lonMin);
-  const [zx2,zy2] = project(zb.latMin, zb.lonMax);
-  svg.appendChild(svgEl('rect',{x:zx1,y:zy1,width:(zx2-zx1),height:(zy2-zy1),class:'seismic-zone'+(zoneVisible?'':' hidden')}));
-  const zlbl = svgEl('text',{x:zx1+4,y:zy1+12,class:'seismic-label'+(zoneVisible?'':' hidden')}); zlbl.textContent = seismicZone.label;
-  svg.appendChild(zlbl);
 
   const sel = occurrences.find(o=>o.id===selectedId);
   document.getElementById('mapCoords').textContent = sel ? `${sel.lat.toFixed(2)}°N, ${Math.abs(sel.lon).toFixed(2)}°W` : '—';
@@ -398,16 +569,18 @@ function renderList(){
   document.getElementById('occCount').textContent = occurrences.length;
   if(!occurrences.length){ list.innerHTML = '<div class="loading">No records returned.</div>'; return; }
   list.innerHTML = '';
-  occurrences.slice(0,60).forEach(o=>{
+  // Unusual sightings surface first so they don't get buried in a long list.
+  const sorted = occurrences.slice().sort((a,b)=> (b.anomaly?1:0) - (a.anomaly?1:0));
+  sorted.slice(0,60).forEach(o=>{
     const recent = daysAgo(o.date) <= 90;
     const row = document.createElement('div');
-    row.className = 'whale-row' + (o.id===selectedId?' active':'');
+    row.className = 'whale-row' + (o.id===selectedId?' active':'') + (o.anomaly?' anomaly':'');
     row.onclick = ()=>{ selectedId = o.id; render(); };
     const dateStr = o.date ? new Date(o.date).toLocaleDateString() : 'undated';
     row.innerHTML = `
-      <div class="dot ${recent?'recent':'older'}"></div>
+      <div class="dot ${o.anomaly?'anomaly':(recent?'recent':'older')}"></div>
       <div>
-        <div class="id mono">${dateStr}</div>
+        <div class="id mono">${o.anomaly?'⚠ ':''}${dateStr} · ${o.species || ''}</div>
         <div class="sub">${o.dataset || 'Unknown source'}</div>
       </div>`;
     list.appendChild(row);
@@ -418,15 +591,85 @@ function renderDetail(){
   const o = occurrences.find(o=>o.id===selectedId);
   document.getElementById('detailId').textContent = o ? (o.date ? new Date(o.date).toLocaleDateString() : '—') : '—';
   if(!o){ document.getElementById('detailBody').innerHTML = '<div class="loading">Select a sighting</div>'; return; }
-  const sst = nearestSST(o.lat, o.lon);
   document.getElementById('detailBody').innerHTML = `
+    ${o.anomaly ? `<div class="anomaly-note">⚠ Unusual location — ${o.anomalyReason}</div>` : ''}
     <div class="kv"><span class="k">Species</span><span class="v">${o.species || '—'}</span></div>
     <div class="kv"><span class="k">Date</span><span class="v">${o.date ? new Date(o.date).toLocaleString() : '—'}</span></div>
     <div class="kv"><span class="k">Position</span><span class="v">${o.lat.toFixed(3)}, ${o.lon.toFixed(3)}</span></div>
     <div class="kv"><span class="k">Dataset</span><span class="v">${o.dataset || '—'}</span></div>
     <div class="kv"><span class="k">Record type</span><span class="v">${o.basisOfRecord || '—'}</span></div>
-    <div class="kv"><span class="k">Nearest SST</span><span class="v">${sst ? sst.sstCelsius.toFixed(1)+'°C' : '—'}</span></div>
+    <div class="kv"><span class="k">SST on sighting date</span><span class="v">${o.historicalSstCelsius!=null ? o.historicalSstCelsius.toFixed(1)+'°C' : '— (outside history window)'}</span></div>
+    <div class="kv"><span class="k">Current SST here</span><span class="v">${o._sst!=null ? o._sst.toFixed(1)+'°C' : '—'}</span></div>
+    <div class="kv"><span class="k">In active GOM lease area</span><span class="v">${o._inLeaseArea ? 'Yes' : 'No'}</span></div>
   `;
+}
+
+function drawSSTComparison(){
+  const svg = document.getElementById('sstCompareSvg');
+  svg.innerHTML = '';
+  const note = document.getElementById('sstCompareNote');
+
+  const byRegion = {};
+  allOccurrences.forEach(o=>{
+    const sstVal = o.historicalSstCelsius != null ? o.historicalSstCelsius : o._sst;
+    if(sstVal == null) return;
+    const r = o._region || regionFor(o.lat, o.lon);
+    byRegion[r] = byRegion[r] || {typical:[], anomaly:[]};
+    (o.anomaly ? byRegion[r].anomaly : byRegion[r].typical).push(sstVal);
+  });
+  const rows = Object.entries(byRegion)
+    .filter(([r,g]) => g.typical.length >= 3 && g.anomaly.length >= 1)
+    .map(([region,g]) => ({
+      region,
+      typicalAvg: g.typical.reduce((a,b)=>a+b,0)/g.typical.length,
+      anomalyAvg: g.anomaly.reduce((a,b)=>a+b,0)/g.anomaly.length,
+      anomalyCount: g.anomaly.length,
+    }));
+
+  if(!rows.length){
+    note.textContent = 'Not enough unusual sightings with nearby temperature data yet to compare — this fills in as more unusual sightings appear (or as more species/regions are tracked).';
+    return;
+  }
+  note.textContent = '';
+
+  const W=460,H=220,padL=34,padR=10,padT=16,padB=34;
+  const allVals = rows.flatMap(r=>[r.typicalAvg, r.anomalyAvg]);
+  const minV = Math.floor(Math.min(...allVals) - 1);
+  const maxV = Math.ceil(Math.max(...allVals) + 1);
+  const yFor = v => padT + (1 - (v-minV)/(maxV-minV)) * (H-padT-padB);
+
+  [minV, Math.round((minV+maxV)/2), maxV].forEach(v=>{
+    const y = yFor(v);
+    svg.appendChild(svgEl('line',{x1:padL,y1:y,x2:W-padR,y2:y,class:'grid-line'}));
+    const lbl = svgEl('text',{x:2,y:y+3,class:'axis-label'}); lbl.textContent = v+'°C';
+    svg.appendChild(lbl);
+  });
+
+  const groupW = (W-padL-padR)/rows.length;
+  const barW = Math.min(28, groupW/3.2);
+  rows.forEach((r,i)=>{
+    const cx = padL + groupW*i + groupW/2;
+    const x1 = cx - barW - 3, x2 = cx + 3;
+    const yT = yFor(r.typicalAvg), yA = yFor(r.anomalyAvg);
+    svg.appendChild(svgEl('rect',{x:x1, y:yT, width:barW, height:(H-padB)-yT, fill:'var(--teal)', opacity:'0.85'}));
+    svg.appendChild(svgEl('rect',{x:x2, y:yA, width:barW, height:(H-padB)-yA, fill:'var(--amber)', opacity:'0.9'}));
+    const lbl = svgEl('text',{x:cx, y:H-8, class:'axis-label', 'text-anchor':'middle'});
+    lbl.textContent = r.region.replace(' Ocean','').replace('Atlantic','Atl.').replace('Pacific','Pac.');
+    svg.appendChild(lbl);
+  });
+
+  // legend
+  svg.appendChild(svgEl('rect',{x:padL, y:2, width:9, height:9, fill:'var(--teal)'}));
+  const l1 = svgEl('text',{x:padL+13, y:10, class:'axis-label'}); l1.textContent='Typical sightings';
+  svg.appendChild(l1);
+  svg.appendChild(svgEl('rect',{x:padL+95, y:2, width:9, height:9, fill:'var(--amber)'}));
+  const l2 = svgEl('text',{x:padL+108, y:10, class:'axis-label'}); l2.textContent='Unusual sightings';
+  svg.appendChild(l2);
+}
+
+function updateDrillingProximity(){
+  const count = allOccurrences.filter(o=>o._inLeaseArea).length;
+  document.getElementById('drillingProxCount').textContent = count;
 }
 
 function render(){
@@ -434,15 +677,16 @@ function render(){
   renderDetail();
   drawMap();
   drawHistogram();
+  drawSSTComparison();
+  updateDrillingProximity();
 }
 
 async function loadData(){
   try {
     const res = await fetch('/api/whales');
     const w = await res.json();
-    occurrences = (w.data || []).slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0));
+    allOccurrences = (w.data || []).slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0));
     if(w.updatedAt) document.getElementById('dataUpdated').textContent = new Date(w.updatedAt).toLocaleString();
-    if(occurrences.length) selectedId = occurrences[0].id;
   } catch(e){
     document.getElementById('whaleList').innerHTML = '<div class="loading">Could not load whale data — is the backend running?</div>';
   }
@@ -451,10 +695,28 @@ async function loadData(){
     const o = await res2.json();
     oceanPoints = o.data || [];
   } catch(e){ /* non-fatal — SST readouts just show — */ }
+  try {
+    const res3 = await fetch('/api/leases');
+    const l = await res3.json();
+    leasePolygons = l.data || [];
+  } catch(e){ /* non-fatal — lease-area flags just show as No */ }
+
+  // Order matters: annotate (needs oceanPoints + leasePolygons already
+  // loaded) before anomaly detection and filter population, so every
+  // downstream view has _sst/_inLeaseArea/historicalSstCelsius available.
+  annotateOccurrences();
+  computeAnomalies();
+  populateFilterControls();
+  applyFilters();
 
   render();
   drawTrend();
 }
+
+document.getElementById('onlyAnomaliesCheck').addEventListener('change', (e)=>{
+  onlyAnomalies = e.target.checked;
+  applyFilters(); render();
+});
 
 document.getElementById('toggleZone').addEventListener('click', (e)=>{
   zoneVisible = !zoneVisible;
