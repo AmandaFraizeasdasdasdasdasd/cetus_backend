@@ -346,6 +346,18 @@ let onlyAnomalies = false;
 
 // Rough, approximate ocean-basin classification from lat/lon -- good
 // enough for a filter dropdown, not a substitute for real basin polygons.
+// Returns an <img> for a species' real photo (fetched from Wikipedia,
+// see /api/species-images) or a simple whale-emoji placeholder if none
+// was found -- so the UI never shows a broken image.
+function speciesImgHtml(species, sizePx){
+  const info = speciesImages[species];
+  const url = info && info.imageUrl;
+  if(url){
+    return `<img src="${url}" alt="${species}" title="${species}" style="width:${sizePx}px;height:${sizePx}px;object-fit:cover;border-radius:4px;flex:none;" loading="lazy">`;
+  }
+  return `<div style="width:${sizePx}px;height:${sizePx}px;display:flex;align-items:center;justify-content:center;background:var(--bg-panel-raised);border-radius:4px;flex:none;font-size:${Math.round(sizePx*0.55)}px;" title="${species}">🐋</div>`;
+}
+
 function regionFor(lat, lon){
   if(lat < -60) return 'Southern Ocean';
   if(lat > 66.5) return 'Arctic Ocean';
@@ -413,6 +425,10 @@ function populateFilterControls(){
       applyFilters(); render();
     });
     label.appendChild(cb);
+    const thumb = document.createElement('span');
+    thumb.innerHTML = speciesImgHtml(sp, 18);
+    thumb.style.display = 'inline-flex';
+    label.appendChild(thumb);
     label.appendChild(document.createTextNode(sp));
     speciesBox.appendChild(label);
   });
@@ -441,6 +457,7 @@ let smaPolygons = [];
 let mpaPolygons = [];
 let padddZones = [];
 let padddMeta = { citation: null, scope: null, count: 0 };
+let speciesImages = {}; // scientificName -> { imageUrl, pageUrl, commonName }
 
 const mapBounds = {latMin:-70, latMax:80, lonMin:-180, lonMax:180};
 const mapW = 640, mapH = 520, mapPad = 40;
@@ -656,7 +673,8 @@ function renderList(){
     row.onclick = ()=>{ selectedId = o.id; render(); };
     const dateStr = o.date ? new Date(o.date).toLocaleDateString() : 'undated';
     row.innerHTML = `
-      <div class="dot ${o.anomaly?'anomaly':(recent?'recent':'older')}"></div>
+      ${speciesImgHtml(o.species, 32)}
+      <div class="dot ${o.anomaly?'anomaly':(recent?'recent':'older')}" style="margin-top:11px;"></div>
       <div>
         <div class="id mono">${o.anomaly?'⚠ ':''}${dateStr} · ${o.species || ''}</div>
         <div class="sub">${o.dataset || 'Unknown source'}</div>
@@ -669,7 +687,16 @@ function renderDetail(){
   const o = occurrences.find(o=>o.id===selectedId);
   document.getElementById('detailId').textContent = o ? (o.date ? new Date(o.date).toLocaleDateString() : '—') : '—';
   if(!o){ document.getElementById('detailBody').innerHTML = '<div class="loading">Select a sighting</div>'; return; }
+  const imgInfo = speciesImages[o.species];
+  const commonName = imgInfo && imgInfo.commonName && imgInfo.commonName !== o.species ? imgInfo.commonName : null;
   document.getElementById('detailBody').innerHTML = `
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+      ${speciesImgHtml(o.species, 56)}
+      <div>
+        <div style="font-size:13px; font-weight:600;">${commonName || o.species || '—'}</div>
+        ${commonName ? `<div style="font-size:11px; color:var(--ink-faint); font-style:italic;">${o.species}</div>` : ''}
+      </div>
+    </div>
     ${o.anomaly ? `<div class="anomaly-note">⚠ Unusual location — ${o.anomalyReason}</div>` : ''}
     <div class="kv"><span class="k">Species</span><span class="v">${o.species || '—'}</span></div>
     <div class="kv"><span class="k">Date</span><span class="v">${o.date ? new Date(o.date).toLocaleString() : '—'}</span></div>
@@ -681,6 +708,7 @@ function renderDetail(){
     <div class="kv"><span class="k">In active GOM lease area</span><span class="v">${o._inLeaseArea ? 'Yes' : 'No'}</span></div>
     <div class="kv"><span class="k">Right whale speed zone</span><span class="v">${o._inRightWhaleSMA ? (o._smaName || 'Yes') : 'No'}</span></div>
     <div class="kv"><span class="k">Marine Protected Area</span><span class="v">${o._inMPA ? (o._mpaName || 'Yes') : 'No'}</span></div>
+    ${o._inMPA && o._mpaProtectionLevel ? `<div class="kv"><span class="k">Protection level</span><span class="v">${o._mpaProtectionLevel}</span></div>` : ''}
     ${o._inPADDDZone ? `<div class="anomaly-note" style="border-color:var(--paddd); background:rgba(201,88,79,0.12); color:var(--paddd);">⚠ In a documented protection-change zone — ${o._padddEvent.name} (${o._padddEvent.year}): ${o._padddEvent.zonePreLabel} → ${o._padddEvent.zonePostLabel}${o._padddEvent.protectionLoosened ? ' (protection loosened)' : ''}</div>` : ''}
   `;
 }
@@ -804,6 +832,11 @@ async function loadData(){
     document.getElementById('padddCount').textContent = padddMeta.count + ' zones';
     document.getElementById('padddCitation').textContent = padddMeta.citation || '—';
   } catch(e){ /* non-fatal — PADDD panel just shows as unavailable */ }
+  try {
+    const res8 = await fetch('/api/species-images');
+    const si = await res8.json();
+    speciesImages = si.data || {};
+  } catch(e){ /* non-fatal — species rows just show without a thumbnail */ }
 
   // Order matters: annotate (needs oceanPoints + all polygon layers already
   // loaded) before anomaly detection and filter population, so every
