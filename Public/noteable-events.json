@@ -1,0 +1,93 @@
+{
+  "note": "Hand-checked displacement events. Short, not exhaustive. Locations are approximate. Add new entries to the 'events' list, then re-deploy this file.",
+  "events": [
+    {
+      "id": "sac-2026-rio-vista",
+      "name": "Sacramento River, near Rio Vista, California",
+      "area": "San Francisco Bay–Sacramento Delta",
+      "species": "Megaptera novaeangliae",
+      "date": "2026-09-16",
+      "dateLabel": "Sep 2026",
+      "lat": 38.156,
+      "lon": -121.692,
+      "approximate": true,
+      "blurb": "Humpback filmed about 60 miles up the Sacramento River.",
+      "summary": "A humpback whale was filmed about 60 miles (97 km) up the Sacramento River near Rio Vista on Sept. 16, 2026, after entering San Francisco Bay earlier that week. Its most recent documented sighting before this was in Baja California in February (per the Marine Mammal Center). Its sex is unknown.",
+      "sources": [
+        {
+          "label": "AP via WDBO",
+          "url": "https://www.wdbo.com/news/national/humpback-whale-was/KR5ZEDTD24ZKXOP3UU2RMLMJ3U/"
+        }
+      ]
+    },
+    {
+      "id": "sac-2007-delta-dawn",
+      "name": "Sacramento River, up to the Port of Sacramento",
+      "area": "San Francisco Bay–Sacramento Delta",
+      "species": "Megaptera novaeangliae",
+      "date": "2007-05-13",
+      "dateLabel": "May 2007",
+      "lat": 38.57,
+      "lon": -121.55,
+      "approximate": true,
+      "blurb": "Mother and calf (Delta and Dawn) reached the Port of Sacramento, about 90 miles inland.",
+      "summary": "A mother and calf nicknamed Delta and Dawn were first spotted in the Sacramento River on May 13, 2007 and travelled about 90 miles inland to the Port of Sacramento. Both had wounds consistent with a boat strike. They spent nearly three weeks in the Delta, circling near the Rio Vista bridge for several days, before returning to the Pacific.",
+      "sources": [
+        {
+          "label": "Cascadia Research (peer-reviewed case report)",
+          "url": "https://cascadiaresearch.org/?p=3603"
+        },
+        {
+          "label": "NBC News",
+          "url": "https://www.nbcnews.com/news/amp/wbna18867297"
+        }
+      ]
+    },
+    {
+      "id": "sf-1990-humphrey",
+      "name": "San Francisco Bay, near Candlestick Park",
+      "area": "San Francisco Bay–Sacramento Delta",
+      "species": "Megaptera novaeangliae",
+      "date": "1990-10-22",
+      "dateLabel": "Oct 1990",
+      "lat": 37.714,
+      "lon": -122.386,
+      "approximate": true,
+      "blurb": "Humphrey returned and stranded on a mudflat near Candlestick Park.",
+      "summary": "Five years after his first visit, the humpback nicknamed Humphrey returned to San Francisco Bay and stranded on a mudflat near Candlestick Park. Rescuers pulled him off with a large cargo net and a Coast Guard boat and guided him back toward the Pacific.",
+      "sources": [
+        {
+          "label": "Tampa Bay Times archive (1990)",
+          "url": "https://www.tampabay.com/archive/1990/10/24/humphrey-escapes-whale-of-a-jam"
+        },
+        {
+          "label": "City of Rio Vista",
+          "url": "https://www.riovistacity.com/community/page/humphrey-humpback-whale"
+        }
+      ]
+    },
+    {
+      "id": "sac-1985-humphrey",
+      "name": "Sacramento River, past Rio Vista (dead-end slough)",
+      "area": "San Francisco Bay–Sacramento Delta",
+      "species": "Megaptera novaeangliae",
+      "date": "1985-10-10",
+      "dateLabel": "Oct 1985",
+      "lat": 38.16,
+      "lon": -121.69,
+      "approximate": true,
+      "blurb": "Humphrey swam about 69 miles up the Sacramento River to a dead-end slough.",
+      "summary": "A humpback nicknamed Humphrey was first spotted at Oakland's Outer Harbor on Oct. 10, 1985. He swam up the Carquinez Strait and the Sacramento River, under the Rio Vista Bridge, to a dead-end slough about 69 miles (111 km) from the ocean. He spent about 25 days in the bay and delta before rescuers guided him back to the Pacific using recorded whale sounds.",
+      "sources": [
+        {
+          "label": "Wikipedia: Humphrey the Whale",
+          "url": "https://en.wikipedia.org/wiki/Humphrey_the_Whale"
+        },
+        {
+          "label": "KALW (2025 retrospective)",
+          "url": "https://www.kalw.org/2025-11-05/remembering-humphrey-the-humpback-40-years-later"
+        }
+      ]
+    }
+  ]
+}
