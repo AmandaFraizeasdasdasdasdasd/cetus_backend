@@ -87,6 +87,7 @@ const cache = {
   rightWhaleSMA: { updatedAt: null, data: [] },
   mpaBoundaries: { updatedAt: null, data: [] },
   speciesImages: { updatedAt: null, data: {} },
+  populationStatus: { updatedAt: null, data: {} },
 };
 
 // ---- Wikipedia: one representative image per tracked species -----------
@@ -121,6 +122,92 @@ async function fetchAllSpeciesImages() {
     } catch (err) {
       console.error(`[species-image] failed for ${species}:`, err.message || err);
       result[species] = { imageUrl: null, pageUrl: null, commonName: species };
+    }
+  }
+  return result;
+}
+
+// ---- IUCN Red List: conservation status & population trend -------------
+// Real, authoritative per-species data -- but requires a free API token
+// the user must request themselves (https://api.iucnredlist.org/users/sign_up).
+// Skips gracefully (logs once, returns empty) if no token is configured.
+// This gives a trend DIRECTION (increasing/decreasing/stable/unknown) and
+// a conservation category, not a historical chart with exact numbers --
+// IUCN doesn't publish structured time-series abundance data either.
+//
+// IMPORTANT: the exact response shape of IUCN's v4 API has not been
+// verified against a live token from this environment (no internet access
+// here to test with a real key). The two-step flow (look up taxon, then
+// fetch its latest assessment) and field names below match the publicly
+// documented structure, but if this comes back empty once a real token is
+// in place, check the raw response logged below and adjust field access
+// accordingly -- same troubleshooting pattern as the other integrations.
+const IUCN_API_TOKEN = process.env.IUCN_API_TOKEN || null;
+const IUCN_BASE_URL = 'https://apiv4.iucnredlist.org/api/v4';
+
+async function iucnFetch(path) {
+  const url = `${IUCN_BASE_URL}${path}`;
+  const res = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${IUCN_API_TOKEN}`,
+      'User-Agent': 'CetusBackend/0.1 (whale monitoring dashboard)',
+    },
+  });
+  if (!res.ok) {
+    const bodyText = await res.text();
+    console.log(`[iucn] error body for ${path}:`, bodyText.slice(0, 400));
+    throw new Error(`IUCN request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+async function fetchIUCNStatus(scientificName) {
+  const parts = scientificName.trim().split(/\s+/);
+  const genus_name = parts[0];
+  const species_name = parts.slice(1).join(' ');
+
+  const taxonResp = await iucnFetch(
+    `/taxa/scientific_name?genus_name=${encodeURIComponent(genus_name)}&species_name=${encodeURIComponent(species_name)}`
+  );
+  console.log(`[iucn] taxon lookup for ${scientificName}:`, JSON.stringify(taxonResp).slice(0, 300));
+
+  const assessments = taxonResp.assessments || (taxonResp.taxon && taxonResp.taxon.assessments) || [];
+  if (!assessments.length) {
+    return { redListCategory: null, redListCategoryCode: null, populationTrend: null, assessmentYear: null, populationNarrative: null };
+  }
+  const latest = assessments.find(a => a.latest) || assessments[0];
+  const assessmentId = latest.assessment_id || latest.sis_taxon_id || latest.id;
+
+  const detail = await iucnFetch(`/assessment/${assessmentId}`);
+  console.log(`[iucn] assessment detail for ${scientificName}:`, JSON.stringify(detail).slice(0, 400));
+
+  const category = detail.red_list_category || {};
+  const trend = detail.population_trend || detail.supplementary_info?.population_trend || {};
+  const narrative = (detail.documentation && detail.documentation.population) ||
+                     (detail.supplementary_info && detail.supplementary_info.population) || null;
+
+  return {
+    redListCategory: category.description?.en || category.code || null,
+    redListCategoryCode: category.code || null,
+    populationTrend: trend.description?.en || trend.code || null,
+    assessmentYear: latest.year_published || null,
+    populationNarrative: narrative,
+  };
+}
+
+async function fetchAllPopulationStatus() {
+  if (!IUCN_API_TOKEN) {
+    console.log('[iucn] no IUCN_API_TOKEN configured -- skipping population-status lookup');
+    return {};
+  }
+  const result = {};
+  for (const species of SPECIES_LIST) {
+    try {
+      result[species] = await fetchIUCNStatus(species);
+      console.log(`[iucn] ${species} -> category=${result[species].redListCategoryCode}, trend=${result[species].populationTrend}`);
+    } catch (err) {
+      console.error(`[iucn] failed for ${species}:`, err.message || err);
+      result[species] = { redListCategory: null, redListCategoryCode: null, populationTrend: null, assessmentYear: null, populationNarrative: null };
     }
   }
   return result;
@@ -165,6 +252,16 @@ async function fetchWhaleOccurrences() {
         date: r.eventDate || r.date_year || null,
         dataset: r.datasetName || null,
         basisOfRecord: r.basisOfRecord || null,
+        // Optional Darwin Core fields -- only present when the source dataset
+        // supplies them, so the dashboard shows them "when available".
+        organismID: r.organismID || null,
+        individualCount: r.individualCount || null,
+        sex: r.sex || null,
+        lifeStage: r.lifeStage || null,
+        locality: r.locality || null,
+        waterBody: r.waterBody || null,
+        country: r.country || null,
+        remarks: r.occurrenceRemarks || null,
       }));
   }));
 
@@ -527,6 +624,14 @@ app.get('/api/species-images', (req, res) => {
   res.json(cache.speciesImages);
 });
 
+app.get('/api/population-status', (req, res) => {
+  res.json({
+    ...cache.populationStatus,
+    configured: !!IUCN_API_TOKEN,
+    citation: 'IUCN 2025. The IUCN Red List of Threatened Species. https://www.iucnredlist.org',
+  });
+});
+
 app.get('/api/land', (req, res) => {
   res.json({
     updatedAt: LAND_BUILT_AT,
@@ -586,6 +691,15 @@ app.listen(PORT, async () => {
     cache.speciesImages.updatedAt = new Date().toISOString();
   } catch (err) {
     console.error('[species-image] batch fetch failed:', err.message || err);
+  }
+
+  // Same idea for IUCN conservation status -- a species' Red List category
+  // and population trend don't change day to day, so fetch once at startup.
+  try {
+    cache.populationStatus.data = await fetchAllPopulationStatus();
+    cache.populationStatus.updatedAt = new Date().toISOString();
+  } catch (err) {
+    console.error('[iucn] batch fetch failed:', err.message || err);
   }
 
   cron.schedule(`*/${REFRESH_MINUTES} * * * *`, refreshAll);
