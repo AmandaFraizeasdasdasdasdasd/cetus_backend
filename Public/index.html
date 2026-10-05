@@ -46,6 +46,12 @@
     flex-wrap:wrap;
   }
   header .brand{display:flex; align-items:baseline; gap:10px;}
+  @media (max-width:520px){
+    header{justify-content:flex-start;}
+    header .meta{text-align:left; width:100%;}
+    .species-check input, .layer-toggle input, #onlyAnomaliesCheck{transform:scale(1.25); margin-right:2px;}
+    .whale-row, .alert-row{padding-top:13px; padding-bottom:13px;}
+  }
   header h1{font-size:22px; font-weight:700; letter-spacing:0.01em; margin:0;}
   header .tag{color:var(--ink-dim); font-size:13px;}
   header .meta{font-size:12px; color:var(--ink-faint); text-align:right;}
@@ -55,13 +61,32 @@
     border-radius:20px; padding:2px 9px; margin-left:8px;
   }
   .live-dot{width:6px;height:6px;border-radius:50%;background:var(--teal); animation:blink 1.6s ease-in-out infinite;}
+  .live-badge.off{color:var(--amber); border-color:var(--amber);}
+  .live-badge.off .live-dot{background:var(--amber);}
+
+  .top-nav{
+    position:sticky; top:0; z-index:10;
+    display:flex; gap:4px; overflow-x:auto; white-space:nowrap;
+    padding:8px 20px; background:var(--bg-panel); border-bottom:1px solid var(--line);
+  }
+  .top-nav a{
+    color:var(--ink-dim); text-decoration:none; font-size:12px;
+    padding:5px 11px; border-radius:20px; border:1px solid transparent;
+    transition:background 0.15s ease, color 0.15s ease;
+  }
+  .top-nav a:hover{background:var(--bg-panel-raised); color:var(--ink);}
+  .top-nav a.top-nav-help{color:var(--teal); border-color:var(--teal); font-weight:600;}
+  .top-nav a.top-nav-help:hover{background:var(--teal); color:var(--bg-panel);}
+  .top-nav::-webkit-scrollbar{height:4px;}
+  .top-nav::-webkit-scrollbar-thumb{background:var(--line); border-radius:2px;}
+  .panel[id]{scroll-margin-top:50px;}
   @keyframes blink{0%,100%{opacity:1;} 50%{opacity:0.35;}}
 
-  main{max-width:1180px; margin:0 auto; padding:20px; display:grid; grid-template-columns:270px 1fr 300px; gap:16px;}
-  @media (max-width:900px){ main{grid-template-columns:1fr;} }
+  main{max-width:1180px; margin:0 auto; padding:20px; display:grid; grid-template-columns:270px minmax(0,1fr) 300px; gap:16px;}
+  @media (max-width:900px){ main{grid-template-columns:minmax(0,1fr);} }
 
-  .panel{background:var(--bg-panel); border:1px solid var(--line); border-radius:3px; overflow:hidden;}
-  .panel-head{padding:11px 14px; border-bottom:1px solid var(--line); font-size:12px; color:var(--ink-dim); display:flex; justify-content:space-between; align-items:center;}
+  .panel{background:var(--bg-panel); border:1px solid var(--line); border-radius:3px; overflow:hidden; min-width:0;}
+  .panel-head{padding:11px 14px; border-bottom:1px solid var(--line); font-size:12px; color:var(--ink-dim); display:flex; justify-content:space-between; align-items:center; gap:4px 12px; flex-wrap:wrap;}
 
   .filter-bar{padding:10px 14px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:10px;}
   .filter-label{font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-faint); margin-bottom:5px;}
@@ -71,10 +96,31 @@
   .region-select{width:100%; background:var(--bg-panel-raised); color:var(--ink); border:1px solid var(--line); border-radius:3px; padding:5px 6px; font-size:12px;}
   .anomaly-badge{color:var(--amber); font-size:11px;}
   .anomaly-badge.hidden{display:none;}
-  .whale-row.anomaly{box-shadow:inset 3px 0 0 var(--amber);}
-  .whale-row.anomaly .id{color:var(--amber);}
-  .occ-dot.anomaly{fill:var(--amber); opacity:0.9;}
+  .rare-tag{margin-left:6px; font-size:9.5px; color:var(--amber); border:1px solid var(--amber); border-radius:8px; padding:0 5px; white-space:nowrap;}
+  .occ-dot.anomaly{fill:none; stroke:var(--amber); stroke-width:1.2; opacity:0.9;}
+  .hit{fill:transparent; cursor:pointer; pointer-events:all;}
   .anomaly-note{background:rgba(231,162,61,0.12); border:1px solid var(--amber); color:var(--amber); border-radius:3px; padding:8px 10px; font-size:12px; margin:0 14px 10px; line-height:1.5;}
+  .iucn-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px;}
+  .iucn-card{background:var(--bg-panel-raised); border:1px solid var(--line); border-radius:4px; padding:12px; display:flex; gap:10px;}
+  .iucn-card-body{flex:1; min-width:0;}
+  .iucn-name{font-size:12.5px; font-weight:600;}
+  .iucn-sci{font-size:10.5px; color:var(--ink-faint); font-style:italic; margin-bottom:6px;}
+  .iucn-badge{display:inline-block; font-size:10px; font-family:'SFMono-Regular',monospace; padding:1px 7px; border-radius:10px; margin-right:6px;}
+  .iucn-trend{font-size:11.5px; color:var(--ink-dim);}
+  .iucn-note{font-size:11px; color:var(--ink-faint); margin-top:10px; grid-column:1/-1;}
+  .alert-row{padding:10px 14px; border-bottom:1px solid var(--line-soft); display:flex; align-items:center; gap:10px; cursor:pointer; transition:background 0.15s ease;}
+  .alert-row:last-child{border-bottom:none;}
+  .alert-row:hover{background:var(--bg-panel-raised);}
+  .alert-icon{color:var(--amber); font-size:16px; flex:none;}
+  .alert-text{flex:1; min-width:0; overflow-wrap:anywhere; font-size:12.5px; color:var(--ink);}
+  .alert-text b{color:var(--amber);}
+  .alert-meta{font-size:11px; color:var(--ink-faint);}
+  .hotspot-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;}
+  .hotspot-card{background:var(--bg-panel-raised); border:1px solid var(--paddd); border-radius:4px; padding:12px; cursor:pointer;}
+  .hotspot-card .hs-count{font-size:20px; font-weight:700; color:var(--paddd);}
+  .hotspot-card .hs-loc{font-family:'SFMono-Regular',monospace; font-size:11.5px; color:var(--ink-dim); margin:4px 0;}
+  .hotspot-card .hs-detail{font-size:11px; color:var(--ink-faint); line-height:1.5;}
+  .hotspot-marker{fill:none; stroke:var(--paddd); stroke-width:2; stroke-dasharray:2 2;}
   .whale-list{max-height:400px; overflow-y:auto;}
   .whale-row{padding:11px 14px; display:flex; gap:10px; align-items:flex-start; cursor:pointer; border-bottom:1px solid var(--line-soft); transition:background 0.15s ease;}
   .whale-row:last-child{border-bottom:none;}
@@ -83,32 +129,34 @@
   .dot{width:8px;height:8px;border-radius:50%;flex:none;margin-top:5px;}
   .dot.recent{background:var(--teal);}
   .dot.older{background:var(--ink-faint);}
-  .dot.anomaly{background:var(--amber);}
-  .whale-row .id{font-size:12.5px; font-weight:600;}
-  .whale-row .sub{font-size:11px; color:var(--ink-faint); margin-top:2px;}
+  .dot.anomaly{background:transparent; border:1.5px solid var(--amber);}
+  .whale-row > div:last-child{min-width:0;}
+  .whale-row .id{font-size:12.5px; font-weight:600; overflow-wrap:anywhere;}
+  .whale-row .sub{font-size:11px; color:var(--ink-faint); margin-top:2px; overflow-wrap:anywhere;}
 
   .map-wrap{padding:0; position:relative;}
+  .svg-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%;}
   svg{display:block; width:100%; height:auto;}
   .grid-line{stroke:var(--grid); stroke-width:1;}
   .coast{fill:var(--land); stroke:var(--line); stroke-width:0.4;}
   .occ-dot{fill:var(--ink-faint); opacity:0.5;}
   .occ-dot.active{fill:var(--teal);}
-  .pulse{fill:none; stroke:var(--teal); stroke-width:1.5; opacity:0.8; transform-origin:center; animation:pulse 2.2s ease-out infinite;}
+  .pulse{fill:none; stroke:var(--teal); stroke-width:1.5; opacity:0.8; transform-box:fill-box; transform-origin:center; animation:pulse 2.2s ease-out infinite;}
   @keyframes pulse{0%{transform:scale(0.4); opacity:0.8;} 100%{transform:scale(2.6); opacity:0;}}
-  .axis-label{font-size:9px; fill:var(--ink-faint); font-family:'SFMono-Regular',monospace;}
-  .region-label{font-size:10px; fill:var(--ink-dim);}
+  .axis-label{font-size:13px; fill:var(--ink-faint); font-family:'SFMono-Regular',monospace;}
+  .region-label{font-size:14px; fill:var(--ink-dim);}
 
   .detail-body{padding:14px;}
   .kv{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line-soft); font-size:12.5px; gap:10px;}
   .kv:last-child{border-bottom:none;}
   .kv .k{color:var(--ink-faint); flex:none;}
-  .kv .v{font-family:'SFMono-Regular',monospace; text-align:right;}
+  .kv .v{font-family:'SFMono-Regular',monospace; text-align:right; min-width:0; overflow-wrap:anywhere;}
   .chart-block{padding:14px; border-top:1px solid var(--line);}
   .chart-title{font-size:11.5px; color:var(--ink-dim); margin-bottom:8px; display:flex; justify-content:space-between;}
 
   .trend-panel{grid-column:1 / -1;}
-  .trend-body{padding:16px; display:grid; grid-template-columns:1fr 260px; gap:20px;}
-  @media (max-width:700px){.trend-body{grid-template-columns:1fr;}}
+  .trend-body{padding:16px; display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:20px;}
+  @media (max-width:700px){.trend-body{grid-template-columns:minmax(0,1fr);}}
   .trend-note{font-size:12px; color:var(--ink-dim); line-height:1.55;}
   .trend-note b{color:var(--ink);}
   .source-list{list-style:none; margin:10px 0 0; padding:0; font-size:11.5px; color:var(--ink-faint);}
@@ -126,8 +174,8 @@
   .paddd-zone{fill:var(--paddd); opacity:0.22; stroke:var(--paddd); stroke-width:0.8; stroke-dasharray:3 2;}
   .paddd-zone.hidden{display:none;}
   .zone-btn.on{background:var(--coral); color:var(--bg-panel);}
-  .drilling-body{padding:16px; display:grid; grid-template-columns:1fr 1fr; gap:24px;}
-  @media (max-width:700px){.drilling-body{grid-template-columns:1fr;}}
+  .drilling-body{padding:16px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:24px;}
+  @media (max-width:700px){.drilling-body{grid-template-columns:minmax(0,1fr);}}
   .drilling-col h3{font-size:13px; margin:0 0 8px; color:var(--ink);}
   .fact-list{list-style:none; margin:10px 0 0; padding:0; font-size:12.5px; color:var(--ink-dim); line-height:1.55;}
   .fact-list li{padding:8px 0 8px 14px; border-top:1px solid var(--line-soft); position:relative;}
@@ -136,6 +184,36 @@
   .fact-list b{color:var(--ink);}
   .lease-zone{fill:var(--coral); opacity:0.2; stroke:var(--coral); stroke-width:0.7;}
   .lease-zone.hidden{display:none;}
+
+  .map-info{display:flex; align-items:center; gap:10px; padding:10px 14px; border-top:1px solid var(--line); font-size:12px; color:var(--ink-dim); min-height:52px; overflow-wrap:anywhere;}
+  .map-info > div{min-width:0;}
+  .map-info a{color:var(--teal); text-decoration:none; white-space:nowrap;}
+  .map-info b{color:var(--ink);}
+  .event-marker{fill:var(--paddd); stroke:var(--bg-panel); stroke-width:1.2; cursor:pointer;}
+  .event-marker.active{stroke:var(--ink); stroke-width:1.6;}
+  .event-note{background:rgba(201,88,79,0.12); border:1px solid var(--paddd); color:var(--paddd); border-radius:3px; padding:8px 10px; font-size:12px; margin:0 0 10px; line-height:1.5;}
+  .alert-sub{display:block; font-size:11.5px; color:var(--ink-dim); margin-top:2px;}
+  .watch-details summary{padding:10px 14px; cursor:pointer; font-size:12px; color:var(--ink-dim); border-top:1px solid var(--line);}
+  .watch-details[open] summary{color:var(--ink);}
+  .src-links a{color:var(--teal); font-size:11.5px; display:block; padding:2px 0; overflow-wrap:anywhere; text-decoration:none;}
+  .nearby-btn{background:none; border:1px solid var(--line); color:var(--ink-dim); border-radius:12px; padding:2px 9px; margin:2px 4px 2px 0; font-size:11px; cursor:pointer;}
+  .nearby-btn:hover{color:var(--ink); border-color:var(--teal);}
+  .legend-grid{padding:14px 16px; display:grid; grid-template-columns:repeat(auto-fit, minmax(min(280px,100%), 1fr)); gap:10px 24px;}
+  .legend-item{display:flex; gap:10px; align-items:flex-start; font-size:12px; color:var(--ink-dim); line-height:1.5;}
+  .legend-item b{color:var(--ink);}
+  .sw{flex:none; width:16px; height:16px; margin-top:2px; display:inline-block; position:relative;}
+  .sw-dot::after{content:''; position:absolute; left:4px; top:4px; width:8px; height:8px; border-radius:50%; background:var(--ink-faint);}
+  .sw-pulse::before{content:''; position:absolute; inset:0; border-radius:50%; border:2px solid var(--teal); animation:lgpulse 2.2s ease-out infinite;}
+  .sw-pulse::after{content:''; position:absolute; left:5px; top:5px; width:6px; height:6px; border-radius:50%; background:var(--teal);}
+  .sw-rare::after{content:''; position:absolute; left:3px; top:3px; width:8px; height:8px; border-radius:50%; border:1.5px solid var(--amber);}
+  .sw-diamond::after{content:''; position:absolute; left:3px; top:3px; width:10px; height:10px; background:var(--paddd); transform:rotate(45deg) scale(0.8);}
+  .sw-ring::after{content:''; position:absolute; inset:1px; border-radius:50%; border:2px dashed var(--paddd);}
+  .sw-live::after{content:''; position:absolute; left:5px; top:5px; width:6px; height:6px; border-radius:50%; background:var(--teal); animation:blink 1.6s ease-in-out infinite;}
+  .sw-lease::after{content:''; position:absolute; inset:2px; background:var(--coral); opacity:0.5; border:1px solid var(--coral);}
+  .sw-sma::after{content:''; position:absolute; inset:2px; background:var(--sma); opacity:0.5; border:1px solid var(--sma);}
+  .sw-mpa::after{content:''; position:absolute; inset:2px; background:var(--mpa); opacity:0.5; border:1px solid var(--mpa);}
+  .sw-paddd::after{content:''; position:absolute; inset:2px; background:var(--paddd); opacity:0.4; border:1px dashed var(--paddd);}
+  @keyframes lgpulse{0%{transform:scale(0.45); opacity:0.9;} 100%{transform:scale(1.15); opacity:0;}}
 
   footer{max-width:1180px; margin:0 auto; padding:8px 20px 32px; font-size:11px; color:var(--ink-faint);}
   .loading{padding:20px; font-size:12px; color:var(--ink-faint); text-align:center;}
@@ -147,10 +225,20 @@
   <div class="brand">
     <h1>Cetus</h1>
     <span class="tag">Satellite-linked whale monitoring</span>
-    <span class="live-badge"><span class="live-dot"></span>LIVE DATA</span>
+    <span class="live-badge off" id="liveBadge"><span class="live-dot"></span><span id="liveBadgeText">WAITING FOR DATA</span></span>
   </div>
-  <div class="meta">Worldwide humpback sightings<br>Updated <span id="dataUpdated" class="mono">—</span></div>
+  <div class="meta"><span id="headerSpeciesLine">Worldwide whale sightings</span><br>Updated <span id="dataUpdated" class="mono">—</span></div>
 </header>
+
+<nav class="top-nav">
+  <a href="#mapPanel">Map</a>
+  <a href="#alertsPanel">Alerts</a>
+  <a href="#iucnPanel">Species</a>
+  <a href="#patternsPanel">Patterns</a>
+  <a href="#drillingPanel">Context</a>
+  <a href="#legend">Legend</a>
+  <a href="#helpPanel" class="top-nav-help">How to Help</a>
+</nav>
 
 <main>
   <div class="panel" id="whaleListPanel">
@@ -174,13 +262,13 @@
       </div>
       <label class="species-check" style="margin-top:2px;">
         <input type="checkbox" id="onlyAnomaliesCheck">
-        <span>Show only unusual sightings</span>
+        <span>Show only rare-region sightings</span>
       </label>
     </div>
     <div class="whale-list" id="whaleList"><div class="loading">Loading real data…</div></div>
   </div>
 
-  <div class="panel map-wrap">
+  <div class="panel map-wrap" id="mapPanel">
     <div class="panel-head"><span>Live sightings map · worldwide</span><span class="mono" id="mapCoords">—</span></div>
     <div class="layer-toggles">
       <label class="layer-toggle"><input type="checkbox" id="toggleLeases"><span>GOM drilling leases</span></label>
@@ -188,7 +276,10 @@
       <label class="layer-toggle"><input type="checkbox" id="toggleMPA"><span>MPA boundaries</span></label>
       <label class="layer-toggle"><input type="checkbox" id="togglePADDD"><span>Documented downgrades</span></label>
     </div>
-    <svg id="mapSvg" viewBox="0 0 640 520" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="svg-scroll">
+      <svg id="mapSvg" viewBox="0 0 640 520" preserveAspectRatio="xMidYMid meet" style="width:100%; min-width:480px; display:block;"></svg>
+    </div>
+    <div class="map-info" id="mapInfo">Click any dot or diamond on the map to see details.</div>
   </div>
 
   <div class="panel" id="detailPanel">
@@ -200,10 +291,47 @@
     </div>
   </div>
 
+  <div class="panel trend-panel" id="legend">
+    <div class="panel-head"><span>Legend — what you're looking at</span></div>
+    <div class="legend-grid">
+      <div class="legend-item"><span class="sw sw-dot"></span><span><b>Grey dot</b> — one whale sighting (a research or citizen-science record). Click it for details.</span></div>
+      <div class="legend-item"><span class="sw sw-pulse"></span><span><b>Pulsing ring</b> — the sighting or event you have selected. It stays on that spot and pulses so you can find it.</span></div>
+      <div class="legend-item"><span class="sw sw-rare"></span><span><b>Amber ring</b> — rare region: this dataset has few records of that species there. Low confidence; it often just reflects where data is collected.</span></div>
+      <div class="legend-item"><span class="sw sw-diamond"></span><span><b>Red diamond</b> — a documented displacement event: a whale confirmed somewhere unexpected, such as up a river. From news and research reports; locations are approximate.</span></div>
+      <div class="legend-item"><span class="sw sw-ring"></span><span><b>Dashed red circle</b> — repeat location: two or more documented events within about 100 km.</span></div>
+      <div class="legend-item"><span class="sw sw-live"></span><span><b>LIVE DATA badge</b> — the blinking dot is only a visual cue. It reads "waiting for data" if nothing has loaded. The page re-checks every 5 minutes; the server refreshes its sources hourly.</span></div>
+      <div class="legend-item"><span class="sw sw-lease"></span><span><b>Orange shading</b> (toggle above the map) — active Gulf of Mexico oil and gas leases (BOEM).</span></div>
+      <div class="legend-item"><span class="sw sw-sma"></span><span><b>Blue shading</b> — right whale vessel speed-restriction zones, US Atlantic (NOAA).</span></div>
+      <div class="legend-item"><span class="sw sw-mpa"></span><span><b>Green shading</b> — US Marine Protected Areas (NOAA).</span></div>
+      <div class="legend-item"><span class="sw sw-paddd"></span><span><b>Red dashed shading</b> — zones where protection was loosened: Australia's 2018 marine park rezoning (PADDDtracker).</span></div>
+    </div>
+  </div>
+
+  <div class="panel trend-panel" id="alertsPanel">
+    <div class="panel-head"><span>Displacement watch — whales in unexpected places</span><span class="mono" id="alertCount">—</span></div>
+    <div id="alertsBody" style="padding:0;">
+      <div class="loading">Loading…</div>
+    </div>
+  </div>
+
+  <div class="panel trend-panel" id="hotspotsPanel">
+    <div class="panel-head"><span>Repeat locations — where displacement keeps happening</span><span class="mono" id="hotspotCount">—</span></div>
+    <div id="hotspotsBody" style="padding:16px;">
+      <div class="loading">Loading…</div>
+    </div>
+  </div>
+
+  <div class="panel trend-panel" id="iucnPanel">
+    <div class="panel-head"><span>Conservation status &amp; population trend — IUCN Red List</span><span class="mono" id="iucnUpdated">—</span></div>
+    <div id="iucnBody" style="padding:16px;">
+      <div class="loading">Loading…</div>
+    </div>
+  </div>
+
   <div class="panel trend-panel">
     <div class="panel-head"><span>Population index — Gulf of Maine (illustrative example)</span><span class="mono">2016–2026</span></div>
     <div class="trend-body">
-      <div><svg id="trendSvg" viewBox="0 0 760 200" preserveAspectRatio="none" style="width:100%; height:200px;"></svg></div>
+      <div class="svg-scroll"><svg id="trendSvg" viewBox="0 0 760 200" preserveAspectRatio="none" style="width:100%; min-width:560px; height:200px; display:block;"></svg></div>
       <div>
         <p class="trend-note"><b>Illustrative composite index</b>, shaped to match published patterns: growth through the mid-2010s, a marked dip during the 2016–2023 Unusual Mortality Event, gradual stabilization since. Not official stock-assessment figures — NOAA stock assessments aren't available as a live feed yet.</p>
         <ul class="source-list">
@@ -220,12 +348,12 @@
     <div class="panel-head"><span>Looking for a "why" — temperature &amp; drilling-zone patterns</span></div>
     <div class="trend-body">
       <div>
-        <div class="chart-title"><span>Sea temperature on sighting date: unusual vs. typical locations, by region</span></div>
-        <svg id="sstCompareSvg" viewBox="0 0 460 220" preserveAspectRatio="xMidYMid meet" style="width:100%; height:220px;"></svg>
+        <div class="chart-title"><span>Sea temperature on sighting date: rare-region vs. typical-region sightings, by region</span></div>
+        <div class="svg-scroll"><svg id="sstCompareSvg" viewBox="0 0 460 220" preserveAspectRatio="xMidYMid meet" style="width:100%; min-width:380px; height:220px; display:block;"></svg></div>
         <div id="sstCompareNote" class="trend-note" style="margin-top:8px;"></div>
       </div>
       <div>
-        <p class="trend-note">Temperature is now matched to each sighting's own month (a monthly snapshot nearest that date, not the exact day) rather than today's conditions — a real improvement, though still not a day-exact match. This shows whether water was measurably warmer or cooler near unusual-location sightings than near typical ones — a pattern worth investigating, not proof of cause for any individual sighting.</p>
+        <p class="trend-note">Temperature is now matched to each sighting's own month (a monthly snapshot nearest that date, not the exact day) rather than today's conditions — a real improvement, though still not a day-exact match. This compares water temperature at rare-region sightings with typical ones. Treat it as exploratory only: the rare regions in this dataset are currently mostly in the Southern Hemisphere, so differences here mostly reflect geography rather than a cause for any individual sighting.</p>
         <div class="kv" style="margin-top:10px;"><span class="k">Sightings inside an active Gulf of Mexico lease area</span><span class="v" id="drillingProxCount">—</span></div>
         <p class="trend-note" style="margin-top:8px;">This is real BOEM lease-boundary data, checked point-by-point against each sighting — but it only covers the Gulf of Mexico. A sighting elsewhere in the world will never show as "inside a lease" here, not because none exists, but because this feed doesn't cover that region.</p>
       </div>
@@ -324,6 +452,51 @@
         </ul>
       </div>
     </div>
+    <div class="drilling-body" style="border-top:1px solid var(--line);">
+      <div class="drilling-col">
+        <h3>SeaWorld's actual international footprint</h3>
+        <p class="trend-note">SeaWorld's parent company (now United Parks &amp; Resorts) has stayed almost entirely domestic. Its only international venture is <b>SeaWorld Abu Dhabi</b>, a brand-new, ground-up park that opened in 2023 — not an acquisition of an existing or struggling facility.</p>
+        <ul class="fact-list">
+          <li>SeaWorld doesn't own or operate the Abu Dhabi park — it's owned and run by Miral, an Emirati developer, with SeaWorld licensing its brand, animal-care protocols, and theme design.</li>
+          <li>SeaWorld Abu Dhabi does not hold orcas.</li>
+          <li>The "buying up struggling foreign parks" pattern sometimes attributed to SeaWorld actually belongs to a different company: <b>Six Flags</b>, which bought a failing Mexico City park (Reino Aventura — once home to Keiko, the orca from <i>Free Willy</i>) in 1999 and rebranded it as Six Flags México.</li>
+        </ul>
+      </div>
+      <div class="drilling-col">
+        <h3>A related ownership thread worth knowing</h3>
+        <p class="trend-note">Before Blackstone (SeaWorld's owner when <i>Blackfish</i> released in 2013), SeaWorld belonged to Anheuser-Busch's theme-park division. When Belgian-Brazilian brewer InBev acquired Anheuser-Busch in 2008, it had no interest in theme parks and spun off SeaWorld/Busch Gardens to Blackstone shortly after — a corporate reshuffle, not an international expansion.</p>
+        <ul class="source-list">
+          <li>SeaWorld Abu Dhabi ownership &amp; licensing — Attractions Magazine; SeaWorld/United Parks &amp; Resorts corporate rename coverage</li>
+          <li>Six Flags México / Reino Aventura history — public record, Six Flags corporate history</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel trend-panel" id="helpPanel">
+    <div class="panel-head"><span>How to help — where to start</span></div>
+    <div class="drilling-body">
+      <div class="drilling-col">
+        <h3>See a whale in distress? Report it — don't act</h3>
+        <p class="trend-note">The single most useful thing an individual can do is report, not intervene. Only NOAA-authorized responders are trained and equipped to safely approach an entangled or injured whale — getting close yourself, even to help, can hurt both of you.</p>
+        <ul class="fact-list">
+          <li><b>Call the regional 24-hour hotline for your area:</b> West Coast (CA/OR/WA) (877) 767-9425 · Southeast/Gulf/Caribbean (877) 942-5343 · Alaska (877) 925-7773 · Greater Atlantic (VA–Canada border) (866) 755-6622</li>
+          <li><b>Or hail the US Coast Guard on VHF Channel 16</b> if you're on the water and don't have a number handy</li>
+          <li><b>Or use the free "Dolphin and Whale 911" app</b> (NOAA, iOS and Android) to report from anywhere</li>
+          <li>Keep a safe, legal distance and stay with the animal from afar until responders arrive if you safely can — that's the most helpful thing a bystander can do</li>
+        </ul>
+      </div>
+      <div class="drilling-col">
+        <h3>Ongoing ways to help</h3>
+        <ul class="fact-list">
+          <li><b>Submit your own whale photos</b> to <a href="https://happywhale.com" target="_blank" style="color:var(--teal);">Happywhale.com</a> — real citizen-science fluke-ID photos feed directly into the kind of research data this dashboard uses</li>
+          <li><b>Follow whale-watching distance guidelines</b> — NOAA recommends staying at least 100 yards from whales generally (greater distances apply for some protected species); slow down in areas whales are known to frequent</li>
+          <li><b>Choose sustainably-caught seafood</b> — gear entanglement is one of the leading causes of whale injury and death; sustainable fisheries use whale-safe gear</li>
+          <li><b>Reduce plastic and ocean pollution</b> at the source — much of it ends up as the marine debris whales become entangled in</li>
+          <li><b>Support organizations working directly on this:</b> NOAA Fisheries, Whale and Dolphin Conservation (WDC), International Fund for Animal Welfare (IFAW), Ocean Conservancy</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -343,9 +516,26 @@ let padddVisible = false;
 let selectedSpecies = new Set();
 let selectedRegion = 'all';
 let onlyAnomalies = false;
+let notableEvents = [];      // hand-checked displacement events (public/notable-events.json)
+let selectedEventId = null;  // set when a red diamond / event is selected instead of a sighting
 
-// Rough, approximate ocean-basin classification from lat/lon -- good
-// enough for a filter dropdown, not a substitute for real basin polygons.
+function esc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtLatLon(lat, lon){
+  return `${Math.abs(lat).toFixed(2)}°${lat>=0?'N':'S'}, ${Math.abs(lon).toFixed(2)}°${lon>=0?'E':'W'}`;
+}
+function commonNameFor(species){
+  const info = speciesImages[species];
+  return (info && info.commonName && info.commonName !== species) ? info.commonName : species;
+}
+function haversineKm(lat1, lon1, lat2, lon2){
+  const R = 6371, toRad = d => d*Math.PI/180;
+  const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+
 // Returns an <img> for a species' real photo (fetched from Wikipedia,
 // see /api/species-images) or a simple whale-emoji placeholder if none
 // was found -- so the UI never shows a broken image.
@@ -353,11 +543,63 @@ function speciesImgHtml(species, sizePx){
   const info = speciesImages[species];
   const url = info && info.imageUrl;
   if(url){
-    return `<img src="${url}" alt="${species}" title="${species}" style="width:${sizePx}px;height:${sizePx}px;object-fit:cover;border-radius:4px;flex:none;" loading="lazy">`;
+    return `<img src="${esc(url)}" alt="${esc(species)}" title="${esc(species)}" style="width:${sizePx}px;height:${sizePx}px;object-fit:cover;border-radius:4px;flex:none;" loading="lazy">`;
   }
-  return `<div style="width:${sizePx}px;height:${sizePx}px;display:flex;align-items:center;justify-content:center;background:var(--bg-panel-raised);border-radius:4px;flex:none;font-size:${Math.round(sizePx*0.55)}px;" title="${species}">🐋</div>`;
+  return `<div style="width:${sizePx}px;height:${sizePx}px;display:flex;align-items:center;justify-content:center;background:var(--bg-panel-raised);border-radius:4px;flex:none;font-size:${Math.round(sizePx*0.55)}px;" title="${esc(species)}">🐋</div>`;
 }
 
+const IUCN_CATEGORY_COLORS = {
+  'LC':'var(--teal)', 'NT':'var(--amber)', 'VU':'var(--amber)',
+  'EN':'var(--coral)', 'CR':'var(--paddd)', 'EW':'var(--ink-faint)',
+  'EX':'var(--ink-faint)', 'DD':'var(--ink-faint)',
+};
+function trendArrow(trend){
+  if(!trend) return '?';
+  const t = trend.toLowerCase();
+  if(t.includes('increas')) return '↑';
+  if(t.includes('decreas')) return '↓';
+  if(t.includes('stable')) return '→';
+  return '?';
+}
+function renderIUCNPanel(){
+  const body = document.getElementById('iucnBody');
+  const species = [...new Set(allOccurrences.map(o=>o.species).filter(Boolean))];
+
+  if(!populationStatusConfigured){
+    body.innerHTML = `<p class="trend-note">Not connected yet — this needs a free IUCN Red List API token. Sign up at <a href="https://api.iucnredlist.org/users/sign_up" target="_blank" style="color:var(--teal);">api.iucnredlist.org/users/sign_up</a> and add it as <span class="mono">IUCN_API_TOKEN</span> in the backend's environment variables.</p>`;
+    document.getElementById('iucnUpdated').textContent = 'not connected';
+    return;
+  }
+  if(!species.length){
+    body.innerHTML = `<p class="trend-note">No species data loaded yet.</p>`;
+    return;
+  }
+
+  const cards = species.map(sp=>{
+    const st = populationStatus[sp] || {};
+    const info = speciesImages[sp];
+    const commonName = (info && info.commonName && info.commonName !== sp) ? info.commonName : sp;
+    const color = IUCN_CATEGORY_COLORS[st.redListCategoryCode] || 'var(--ink-faint)';
+    return `
+      <div class="iucn-card">
+        ${speciesImgHtml(sp, 44)}
+        <div class="iucn-card-body">
+          <div class="iucn-name">${commonName}</div>
+          <div class="iucn-sci">${sp}</div>
+          <span class="iucn-badge" style="background:${color}; color:var(--bg-panel);">${st.redListCategoryCode || st.redListCategory || '—'}</span>
+          <span class="iucn-trend">${trendArrow(st.populationTrend)} ${st.populationTrend || 'Unknown trend'}</span>
+          ${st.assessmentYear ? `<div class="iucn-sci" style="margin-top:4px;">Assessed ${st.assessmentYear}</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  body.innerHTML = `<div class="iucn-grid">${cards}</div>
+    <p class="iucn-note">Real per-species conservation status and population trend DIRECTION from IUCN — not a historical chart with exact numbers, since IUCN doesn't publish structured time-series abundance either. ${populationStatusCitation}</p>`;
+  document.getElementById('iucnUpdated').textContent = 'live';
+}
+
+// Rough, approximate ocean-basin classification from lat/lon -- good
+// enough for a filter dropdown, not a substitute for real basin polygons.
 function regionFor(lat, lon){
   if(lat < -60) return 'Southern Ocean';
   if(lat > 66.5) return 'Arctic Ocean';
@@ -366,10 +608,11 @@ function regionFor(lat, lon){
   return lat >= 0 ? 'North Pacific' : 'South Pacific';
 }
 
-// Flags a sighting as "unusual" when it falls in a region that species is
-// rarely seen in, based on the actual sightings in the current dataset --
-// not a hardcoded migration map. Needs at least 10 sightings for that
-// species before flagging anything, to avoid false positives on thin data.
+// Flags a sighting as "rare region" when that ocean region holds under 5% of
+// the dataset's records for the species. This is a LOW-confidence hint only:
+// the data is heavily weighted toward some areas (e.g. the North Atlantic),
+// so normal habitat elsewhere can get flagged. It is NOT proof of displacement.
+// Needs at least 10 records for a species before flagging anything.
 const ANOMALY_MIN_SAMPLE = 10;
 const ANOMALY_RARE_THRESHOLD = 0.05;
 
@@ -388,12 +631,139 @@ function computeAnomalies(){
       const frac = regionCounts[o._region] / total;
       if(total >= ANOMALY_MIN_SAMPLE && frac < ANOMALY_RARE_THRESHOLD){
         o.anomaly = true;
-        o.anomalyReason = `Rare region for ${o.species} — only ${Math.round(frac*100)}% of its ${total} tracked sightings are in the ${o._region}`;
+        o.anomalyReason = `only ${Math.round(frac*100)}% of the ${total} ${o.species} records in this dataset are in the ${o._region}`;
       } else {
         o.anomaly = false;
         o.anomalyReason = null;
       }
     });
+  });
+}
+
+// ---- Displacement watch & repeat locations --------------------------------
+// Two different kinds of signal, kept separate on purpose:
+//  1) Documented events: a short, hand-checked list (notable-events.json) of
+//     whales found far from where they belong, each with sources.
+//  2) Rare-region flags: an automatic, LOW-confidence hint (see computeAnomalies).
+
+const HOTSPOT_RADIUS_KM = 100;
+
+function selectOccurrence(id){
+  selectedEventId = null;
+  selectedId = id;
+  render();
+}
+function selectEvent(id){
+  selectedEventId = id;
+  render();
+}
+function jumpToOccurrence(id){
+  // Reset filters so the target sighting is guaranteed to be visible.
+  selectedSpecies = new Set(allOccurrences.map(o=>o.species).filter(Boolean));
+  selectedRegion = 'all';
+  onlyAnomalies = false;
+  const regionSelect = document.getElementById('regionFilter');
+  if(regionSelect) regionSelect.value = 'all';
+  const onlyBox = document.getElementById('onlyAnomaliesCheck');
+  if(onlyBox) onlyBox.checked = false;
+  populateFilterControls();
+  applyFilters();
+  selectedEventId = null;
+  selectedId = id;
+  render();
+  document.getElementById('mapPanel').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function jumpToEvent(id){
+  selectedEventId = id;
+  render();
+  document.getElementById('mapPanel').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function renderDisplacementAlerts(){
+  const body = document.getElementById('alertsBody');
+  const existing = body.querySelector('details.watch-details');
+  const wasOpen = !!(existing && existing.open);
+  const events = notableEvents.slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0));
+  const rare = allOccurrences.filter(o=>o.anomaly)
+    .slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0));
+  document.getElementById('alertCount').textContent = events.length + ' documented';
+
+  let html = `<p class="trend-note" style="padding:12px 14px; margin:0;">Hand-checked cases of whales found far from where they belong, each linked to its source. This is a short list of well-documented events, not an exhaustive one. Click one to see it on the map.</p>`;
+  if(!events.length){
+    html += '<div class="loading">No documented events loaded.</div>';
+  } else {
+    html += events.map(ev=>`
+      <div class="alert-row" data-ev="${esc(ev.id)}">
+        <span class="alert-icon" style="color:var(--paddd);">◆</span>
+        <span class="alert-text"><b style="color:var(--ink);">${esc(commonNameFor(ev.species))}</b> — ${esc(ev.name)}
+          <span class="alert-sub">${esc(ev.blurb || '')}</span></span>
+        <span class="alert-meta">${esc(ev.dateLabel || '')}</span>
+      </div>`).join('');
+  }
+  html += `
+    <details class="watch-details"${wasOpen ? ' open' : ''}>
+      <summary>Low-confidence flags: sightings in regions rarely recorded for that species (${rare.length})</summary>
+      <p class="trend-note" style="padding:8px 14px; margin:0;">These are <b>not</b> confirmed displacement. Each is a sighting in an ocean region where this dataset has few records for that species. That usually reflects where researchers collect data (for example, heavy North Atlantic coverage) rather than whales being somewhere unusual. Treat them as a prompt to look, not a finding.</p>
+      ${rare.slice(0,30).map(o=>`
+        <div class="alert-row" data-id="${esc(o.id)}">
+          <span class="alert-icon">◌</span>
+          <span class="alert-text"><b>${esc(commonNameFor(o.species))}</b> — ${esc(o.anomalyReason)}</span>
+          <span class="alert-meta">${o.date ? new Date(o.date).toLocaleDateString() : 'undated'}</span>
+        </div>`).join('')}
+    </details>`;
+  body.innerHTML = html;
+  body.querySelectorAll('.alert-row[data-ev]').forEach(row=>{
+    row.addEventListener('click', ()=> jumpToEvent(row.dataset.ev));
+  });
+  body.querySelectorAll('.alert-row[data-id]').forEach(row=>{
+    row.addEventListener('click', ()=> jumpToOccurrence(row.dataset.id));
+  });
+}
+
+// Groups documented events that happened within HOTSPOT_RADIUS_KM of each
+// other. A cluster of 2+ is a repeat location -- the Sacramento River /
+// San Francisco Bay area is the real-world example.
+function computeHotspots(){
+  const clusters = [];
+  notableEvents.slice().sort((a,b)=> new Date(a.date||0) - new Date(b.date||0)).forEach(ev=>{
+    let target = clusters.find(c => haversineKm(c.lat, c.lon, ev.lat, ev.lon) <= HOTSPOT_RADIUS_KM);
+    if(!target){ target = {lat: ev.lat, lon: ev.lon, events: []}; clusters.push(target); }
+    target.events.push(ev);
+    target.lat = target.events.reduce((t,e)=>t+e.lat,0) / target.events.length;
+    target.lon = target.events.reduce((t,e)=>t+e.lon,0) / target.events.length;
+  });
+  hotspots = clusters.filter(c=>c.events.length >= 2).map(c=>{
+    const years = c.events.map(e=>new Date(e.date).getUTCFullYear()).filter(y=>!isNaN(y));
+    return {
+      lat: c.lat, lon: c.lon, count: c.events.length, events: c.events,
+      areas: [...new Set(c.events.map(e=>e.area).filter(Boolean))],
+      species: [...new Set(c.events.map(e=>e.species))],
+      years: [...new Set(years)].sort((a,b)=>a-b),
+      newestId: c.events[c.events.length-1].id,
+    };
+  }).sort((a,b)=> b.count - a.count);
+}
+
+function renderHotspots(){
+  document.getElementById('hotspotCount').textContent = hotspots.length;
+  const body = document.getElementById('hotspotsBody');
+  if(!hotspots.length){
+    body.innerHTML = '<p class="trend-note">No repeat locations among the documented events yet.</p>';
+    return;
+  }
+  const cards = hotspots.map(h=>`
+    <div class="hotspot-card" data-ev="${esc(h.newestId)}">
+      <div class="hs-count">${h.count}×</div>
+      <div class="hs-loc">${esc(h.areas.join(' / ') || (h.lat.toFixed(1)+'°, '+h.lon.toFixed(1)+'°'))}</div>
+      <div class="hs-detail">
+        ${h.years.join(' · ')}<br>
+        ${esc(h.species.map(commonNameFor).join(', '))}
+      </div>
+    </div>`).join('');
+  body.innerHTML = `<div class="hotspot-grid">${cards}</div>
+    <p class="trend-note" style="margin-top:12px;">A repeat location means two or more documented events within about ${HOTSPOT_RADIUS_KM} km of each other. This is built from the hand-checked list above, not from automatic detection. Finding new repeat spots automatically would need reliable per-sighting flags for rivers and bays, which the current data can't provide.</p>`;
+  body.querySelectorAll('.hotspot-card').forEach(card=>{
+    card.addEventListener('click', ()=> jumpToEvent(card.dataset.ev));
   });
 }
 
@@ -429,7 +799,8 @@ function populateFilterControls(){
     thumb.innerHTML = speciesImgHtml(sp, 18);
     thumb.style.display = 'inline-flex';
     label.appendChild(thumb);
-    label.appendChild(document.createTextNode(sp));
+    const common = commonNameFor(sp);
+    label.appendChild(document.createTextNode(common !== sp ? `${sp} (${common})` : sp));
     speciesBox.appendChild(label);
   });
 
@@ -444,7 +815,8 @@ function populateFilterControls(){
   const anomalyCount = allOccurrences.filter(o=>o.anomaly).length;
   const badge = document.getElementById('anomalyBadge');
   if(anomalyCount > 0){
-    badge.textContent = `⚠ ${anomalyCount} unusual`;
+    badge.textContent = `${anomalyCount} rare-region`;
+    badge.title = 'Sightings in regions where this dataset has few records for that species (low confidence)';
     badge.classList.remove('hidden');
   } else {
     badge.classList.add('hidden');
@@ -457,7 +829,11 @@ let smaPolygons = [];
 let mpaPolygons = [];
 let padddZones = [];
 let padddMeta = { citation: null, scope: null, count: 0 };
+let hotspots = []; // repeat locations: clusters of 2+ documented events within ~100 km
 let speciesImages = {}; // scientificName -> { imageUrl, pageUrl, commonName }
+let populationStatus = {}; // scientificName -> { redListCategory, redListCategoryCode, populationTrend, ... }
+let populationStatusConfigured = false;
+let populationStatusCitation = '';
 
 const mapBounds = {latMin:-70, latMax:80, lonMin:-180, lonMax:180};
 const mapW = 640, mapH = 520, mapPad = 40;
@@ -578,17 +954,44 @@ function drawMap(){
   drawRingLayer(mpaPolygons, mpaVisible, 'mpa-zone');
   drawRingLayer(padddZones, padddVisible, 'paddd-zone');
 
+  hotspots.forEach(h=>{
+    const [hx,hy] = project(h.lat, h.lon);
+    svg.appendChild(svgEl('circle',{cx:hx, cy:hy, r:13, class:'hotspot-marker'}));
+  });
+
   occurrences.forEach(o=>{
     if(o.lat==null || o.lon==null) return;
-    const isActive = o.id === selectedId;
+    const isActive = !selectedEventId && o.id === selectedId;
     const [x,y] = project(o.lat, o.lon);
     if(isActive) svg.appendChild(svgEl('circle',{cx:x,cy:y,r:12,class:'pulse'}));
     const cls = 'occ-dot' + (isActive?' active':'') + (o.anomaly?' anomaly':'');
-    svg.appendChild(svgEl('circle',{cx:x,cy:y,r:(isActive||o.anomaly)?4:2,class:cls}));
+    svg.appendChild(svgEl('circle',{cx:x,cy:y,r:(isActive?4.5:(o.anomaly?3:2.2)),class:cls}));
+    // Larger invisible circle on top so dots are easy to click or tap.
+    const hit = svgEl('circle',{cx:x,cy:y,r:11,class:'hit'});
+    const tip = svgEl('title',{});
+    tip.textContent = `${commonNameFor(o.species)} · ${o.date ? new Date(o.date).toLocaleDateString() : 'undated'}`;
+    hit.appendChild(tip);
+    hit.addEventListener('click', ()=> selectOccurrence(o.id));
+    svg.appendChild(hit);
   });
 
-  const sel = occurrences.find(o=>o.id===selectedId);
-  document.getElementById('mapCoords').textContent = sel ? `${sel.lat.toFixed(2)}°N, ${Math.abs(sel.lon).toFixed(2)}°W` : '—';
+  // Documented displacement events: red diamonds, oldest first so the newest sits on top.
+  notableEvents.slice().sort((a,b)=> new Date(a.date||0) - new Date(b.date||0)).forEach(ev=>{
+    const [x,y] = project(ev.lat, ev.lon);
+    const active = ev.id === selectedEventId;
+    if(active) svg.appendChild(svgEl('circle',{cx:x,cy:y,r:14,class:'pulse'}));
+    const m = svgEl('path',{d:`M${x},${y-7} L${x+7},${y} L${x},${y+7} L${x-7},${y} Z`, class:'event-marker'+(active?' active':'')});
+    const tip = svgEl('title',{});
+    tip.textContent = `${ev.name} · ${ev.dateLabel || ''}`;
+    m.appendChild(tip);
+    m.addEventListener('click', ()=> selectEvent(ev.id));
+    svg.appendChild(m);
+  });
+
+  const sel = !selectedEventId ? occurrences.find(o=>o.id===selectedId) : null;
+  const selEv = selectedEventId ? notableEvents.find(e=>e.id===selectedEventId) : null;
+  document.getElementById('mapCoords').textContent =
+    sel ? fmtLatLon(sel.lat, sel.lon) : (selEv ? fmtLatLon(selEv.lat, selEv.lon) : '—');
 }
 
 function drawHistogram(){
@@ -662,54 +1065,101 @@ function drawTrend(){
 function renderList(){
   const list = document.getElementById('whaleList');
   document.getElementById('occCount').textContent = occurrences.length;
-  if(!occurrences.length){ list.innerHTML = '<div class="loading">No records returned.</div>'; return; }
+  if(!occurrences.length){
+    list.innerHTML = allOccurrences.length
+      ? '<div class="loading">No sightings match these filters.</div>'
+      : '<div class="loading">No data yet. If the server just restarted it may still be loading — try again in a minute or two.</div>';
+    return;
+  }
   list.innerHTML = '';
-  // Unusual sightings surface first so they don't get buried in a long list.
-  const sorted = occurrences.slice().sort((a,b)=> (b.anomaly?1:0) - (a.anomaly?1:0));
-  sorted.slice(0,60).forEach(o=>{
+  occurrences.slice(0,60).forEach(o=>{
     const recent = daysAgo(o.date) <= 90;
     const row = document.createElement('div');
-    row.className = 'whale-row' + (o.id===selectedId?' active':'') + (o.anomaly?' anomaly':'');
-    row.onclick = ()=>{ selectedId = o.id; render(); };
+    row.className = 'whale-row' + (!selectedEventId && o.id===selectedId ? ' active' : '');
+    row.onclick = ()=> selectOccurrence(o.id);
     const dateStr = o.date ? new Date(o.date).toLocaleDateString() : 'undated';
     row.innerHTML = `
       ${speciesImgHtml(o.species, 32)}
       <div class="dot ${o.anomaly?'anomaly':(recent?'recent':'older')}" style="margin-top:11px;"></div>
       <div>
-        <div class="id mono">${o.anomaly?'⚠ ':''}${dateStr} · ${o.species || ''}</div>
-        <div class="sub">${o.dataset || 'Unknown source'}</div>
+        <div class="id mono">${dateStr} · ${esc(commonNameFor(o.species))}${o.anomaly ? '<span class="rare-tag" title="Rare region in this dataset (low confidence)">rare region</span>' : ''}</div>
+        <div class="sub">${esc(o.dataset || 'Unknown source')}</div>
       </div>`;
     list.appendChild(row);
   });
 }
 
+function eventDetailHtml(ev){
+  const common = commonNameFor(ev.species);
+  const nearby = notableEvents
+    .filter(e => e.id !== ev.id && haversineKm(ev.lat, ev.lon, e.lat, e.lon) <= HOTSPOT_RADIUS_KM)
+    .sort((a,b)=> new Date(b.date||0) - new Date(a.date||0));
+  return `
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+      ${speciesImgHtml(ev.species, 56)}
+      <div>
+        <div style="font-size:13px; font-weight:600;">${esc(common)}</div>
+        ${common !== ev.species ? `<div style="font-size:11px; color:var(--ink-faint); font-style:italic;">${esc(ev.species)}</div>` : ''}
+      </div>
+    </div>
+    <div class="event-note">◆ Documented displacement event — ${esc(ev.dateLabel || '')}</div>
+    <div class="kv"><span class="k">Where</span><span class="v">${esc(ev.name)}</span></div>
+    ${ev.area ? `<div class="kv"><span class="k">Area</span><span class="v">${esc(ev.area)}</span></div>` : ''}
+    <div class="kv"><span class="k">Position</span><span class="v">${fmtLatLon(ev.lat, ev.lon)}${ev.approximate ? ' (approx.)' : ''}</span></div>
+    <p class="trend-note" style="margin:10px 0;">${esc(ev.summary || '')}</p>
+    ${(ev.sources && ev.sources.length) ? `<div class="src-links">${ev.sources.map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)} ↗</a>`).join('')}</div>` : ''}
+    ${nearby.length ? `<div style="margin-top:10px; font-size:11.5px; color:var(--ink-faint);">Other documented events nearby:<div style="margin-top:4px;">${nearby.map(e=>`<button class="nearby-btn" data-ev="${esc(e.id)}">${esc(e.dateLabel || e.name)}</button>`).join('')}</div></div>` : ''}
+  `;
+}
+
 function renderDetail(){
+  const body = document.getElementById('detailBody');
+  const idEl = document.getElementById('detailId');
+  if(selectedEventId){
+    const ev = notableEvents.find(e=>e.id===selectedEventId);
+    if(ev){
+      idEl.textContent = ev.dateLabel || '—';
+      body.innerHTML = eventDetailHtml(ev);
+      body.querySelectorAll('.nearby-btn').forEach(b=> b.addEventListener('click', ()=> selectEvent(b.dataset.ev)));
+      return;
+    }
+  }
   const o = occurrences.find(o=>o.id===selectedId);
-  document.getElementById('detailId').textContent = o ? (o.date ? new Date(o.date).toLocaleDateString() : '—') : '—';
-  if(!o){ document.getElementById('detailBody').innerHTML = '<div class="loading">Select a sighting</div>'; return; }
-  const imgInfo = speciesImages[o.species];
-  const commonName = imgInfo && imgInfo.commonName && imgInfo.commonName !== o.species ? imgInfo.commonName : null;
-  document.getElementById('detailBody').innerHTML = `
+  idEl.textContent = o ? (o.date ? new Date(o.date).toLocaleDateString() : '—') : '—';
+  if(!o){ body.innerHTML = '<div class="loading">Click a dot on the map or a row in the list.</div>'; return; }
+  const common = commonNameFor(o.species);
+  const row = (k, v) => (v!=null && v!=='') ? `<div class="kv"><span class="k">${k}</span><span class="v">${esc(v)}</span></div>` : '';
+  const remarks = o.remarks ? (o.remarks.length > 220 ? o.remarks.slice(0,220) + '…' : o.remarks) : null;
+  body.innerHTML = `
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
       ${speciesImgHtml(o.species, 56)}
       <div>
-        <div style="font-size:13px; font-weight:600;">${commonName || o.species || '—'}</div>
-        ${commonName ? `<div style="font-size:11px; color:var(--ink-faint); font-style:italic;">${o.species}</div>` : ''}
+        <div style="font-size:13px; font-weight:600;">${esc(common)}</div>
+        ${common !== o.species ? `<div style="font-size:11px; color:var(--ink-faint); font-style:italic;">${esc(o.species)}</div>` : ''}
       </div>
     </div>
-    ${o.anomaly ? `<div class="anomaly-note">⚠ Unusual location — ${o.anomalyReason}</div>` : ''}
-    <div class="kv"><span class="k">Species</span><span class="v">${o.species || '—'}</span></div>
-    <div class="kv"><span class="k">Date</span><span class="v">${o.date ? new Date(o.date).toLocaleString() : '—'}</span></div>
-    <div class="kv"><span class="k">Position</span><span class="v">${o.lat.toFixed(3)}, ${o.lon.toFixed(3)}</span></div>
-    <div class="kv"><span class="k">Dataset</span><span class="v">${o.dataset || '—'}</span></div>
-    <div class="kv"><span class="k">Record type</span><span class="v">${o.basisOfRecord || '—'}</span></div>
-    <div class="kv"><span class="k">SST on sighting date</span><span class="v">${o.historicalSstCelsius!=null ? o.historicalSstCelsius.toFixed(1)+'°C' : '— (outside history window)'}</span></div>
-    <div class="kv"><span class="k">Current SST here</span><span class="v">${o._sst!=null ? o._sst.toFixed(1)+'°C' : '—'}</span></div>
+    ${o.anomaly ? `<div class="anomaly-note" style="margin:0 0 10px;">Rare region in this dataset (low confidence): ${esc(o.anomalyReason)}. This often reflects where data is collected, not unusual whale behavior.</div>` : ''}
+    ${row('Date', o.date ? new Date(o.date).toLocaleString() : null)}
+    ${row('Position', fmtLatLon(o.lat, o.lon))}
+    ${row('Ocean region', o._region)}
+    ${row('Locality', o.locality)}
+    ${row('Water body', o.waterBody)}
+    ${row('Country', o.country)}
+    ${row('Individual ID', o.organismID)}
+    ${row('Whales in record', o.individualCount)}
+    ${row('Sex', o.sex)}
+    ${row('Life stage', o.lifeStage)}
+    ${row('Source dataset', o.dataset)}
+    ${row('Record type', o.basisOfRecord)}
+    ${remarks ? `<div class="kv"><span class="k">Notes</span><span class="v" style="text-align:left;">${esc(remarks)}</span></div>` : ''}
+    ${row('Sea temperature that month', o.historicalSstCelsius!=null ? o.historicalSstCelsius.toFixed(1)+'°C' : null)}
+    ${row('Sea temperature now', o._sst!=null ? o._sst.toFixed(1)+'°C' : null)}
     <div class="kv"><span class="k">In active GOM lease area</span><span class="v">${o._inLeaseArea ? 'Yes' : 'No'}</span></div>
-    <div class="kv"><span class="k">Right whale speed zone</span><span class="v">${o._inRightWhaleSMA ? (o._smaName || 'Yes') : 'No'}</span></div>
-    <div class="kv"><span class="k">Marine Protected Area</span><span class="v">${o._inMPA ? (o._mpaName || 'Yes') : 'No'}</span></div>
-    ${o._inMPA && o._mpaProtectionLevel ? `<div class="kv"><span class="k">Protection level</span><span class="v">${o._mpaProtectionLevel}</span></div>` : ''}
-    ${o._inPADDDZone ? `<div class="anomaly-note" style="border-color:var(--paddd); background:rgba(201,88,79,0.12); color:var(--paddd);">⚠ In a documented protection-change zone — ${o._padddEvent.name} (${o._padddEvent.year}): ${o._padddEvent.zonePreLabel} → ${o._padddEvent.zonePostLabel}${o._padddEvent.protectionLoosened ? ' (protection loosened)' : ''}</div>` : ''}
+    <div class="kv"><span class="k">Right whale speed zone</span><span class="v">${o._inRightWhaleSMA ? esc(o._smaName || 'Yes') : 'No'}</span></div>
+    <div class="kv"><span class="k">Marine Protected Area</span><span class="v">${o._inMPA ? esc(o._mpaName || 'Yes') : 'No'}</span></div>
+    ${o._inMPA && o._mpaProtectionLevel ? `<div class="kv"><span class="k">Protection level</span><span class="v">${esc(o._mpaProtectionLevel)}</span></div>` : ''}
+    ${o._inPADDDZone ? `<div class="event-note" style="margin-top:10px;">⚠ In a documented protection-change zone — ${esc(o._padddEvent.name)} (${esc(o._padddEvent.year)}): ${esc(o._padddEvent.zonePreLabel)} → ${esc(o._padddEvent.zonePostLabel)}${o._padddEvent.protectionLoosened ? ' (protection loosened)' : ''}</div>` : ''}
+    <p class="trend-note" style="margin-top:12px; font-size:11px; color:var(--ink-faint);">This is one sighting record, not a tracked individual. Following a single whale over time needs photo-ID or satellite-tag data (the Argos partnership is still pending).</p>
   `;
 }
 
@@ -736,7 +1186,7 @@ function drawSSTComparison(){
     }));
 
   if(!rows.length){
-    note.textContent = 'Not enough unusual sightings with nearby temperature data yet to compare — this fills in as more unusual sightings appear (or as more species/regions are tracked).';
+    note.textContent = 'Not enough rare-region sightings with temperature data to compare yet.';
     return;
   }
   note.textContent = '';
@@ -769,10 +1219,10 @@ function drawSSTComparison(){
 
   // legend
   svg.appendChild(svgEl('rect',{x:padL, y:2, width:9, height:9, fill:'var(--teal)'}));
-  const l1 = svgEl('text',{x:padL+13, y:10, class:'axis-label'}); l1.textContent='Typical sightings';
+  const l1 = svgEl('text',{x:padL+13, y:10, class:'axis-label'}); l1.textContent='Typical-region sightings';
   svg.appendChild(l1);
-  svg.appendChild(svgEl('rect',{x:padL+95, y:2, width:9, height:9, fill:'var(--amber)'}));
-  const l2 = svgEl('text',{x:padL+108, y:10, class:'axis-label'}); l2.textContent='Unusual sightings';
+  svg.appendChild(svgEl('rect',{x:padL+215, y:2, width:9, height:9, fill:'var(--amber)'}));
+  const l2 = svgEl('text',{x:padL+228, y:10, class:'axis-label'}); l2.textContent='Rare-region sightings';
   svg.appendChild(l2);
 }
 
@@ -781,13 +1231,66 @@ function updateDrillingProximity(){
   document.getElementById('drillingProxCount').textContent = count;
 }
 
+function updateHeaderSpeciesLine(){
+  const species = [...new Set(allOccurrences.map(o=>o.species).filter(Boolean))];
+  const el = document.getElementById('headerSpeciesLine');
+  if(!species.length){ el.textContent = 'Worldwide whale sightings'; return; }
+  const names = species.map(sp => {
+    const info = speciesImages[sp];
+    return (info && info.commonName && info.commonName !== sp) ? info.commonName : sp;
+  });
+  if(names.length === 1){
+    el.textContent = `Worldwide ${names[0].toLowerCase()} sightings`;
+  } else if(names.length <= 3){
+    el.textContent = `Worldwide sightings — ${names.join(', ')}`;
+  } else {
+    el.textContent = `Worldwide sightings — ${names.length} species tracked`;
+  }
+}
+
+function updateLiveBadge(){
+  const badge = document.getElementById('liveBadge');
+  const text = document.getElementById('liveBadgeText');
+  const hasData = allOccurrences.length > 0;
+  text.textContent = hasData ? 'LIVE DATA' : 'WAITING FOR DATA';
+  badge.classList.toggle('off', !hasData);
+}
+
+// Small strip under the map: the basics for whatever was just clicked, so on
+// a phone you don't have to scroll to the detail panel to see anything.
+function renderMapInfo(){
+  const el = document.getElementById('mapInfo');
+  if(selectedEventId){
+    const ev = notableEvents.find(e=>e.id===selectedEventId);
+    if(ev){
+      el.innerHTML = `${speciesImgHtml(ev.species, 36)}<div><b>◆ ${esc(ev.name)}</b> · ${esc(ev.dateLabel || '')}<br>${esc(ev.blurb || '')} <a href="#detailPanel">Full details ↓</a></div>`;
+      return;
+    }
+  }
+  const o = occurrences.find(o=>o.id===selectedId);
+  if(!o){ el.textContent = 'Click any dot or diamond on the map to see details.'; return; }
+  const common = commonNameFor(o.species);
+  el.innerHTML = `${speciesImgHtml(o.species, 36)}<div><b>${esc(common)}</b>${common !== o.species ? ` <i>${esc(o.species)}</i>` : ''}<br>${o.date ? new Date(o.date).toLocaleDateString() : 'undated'} · ${fmtLatLon(o.lat, o.lon)} · ${esc(o.dataset || 'unknown source')}${o.anomaly ? ' · rare region' : ''} <a href="#detailPanel">Full details ↓</a></div>`;
+}
+
+// Redraws everything that depends on what's selected or filtered.
 function render(){
   renderList();
   renderDetail();
   drawMap();
+  renderMapInfo();
   drawHistogram();
   drawSSTComparison();
   updateDrillingProximity();
+}
+
+// Panels that depend on the loaded data but not on selection or filters.
+function renderDataPanels(){
+  updateHeaderSpeciesLine();
+  updateLiveBadge();
+  renderDisplacementAlerts();
+  renderHotspots();
+  renderIUCNPanel();
 }
 
 async function loadData(){
@@ -837,6 +1340,18 @@ async function loadData(){
     const si = await res8.json();
     speciesImages = si.data || {};
   } catch(e){ /* non-fatal — species rows just show without a thumbnail */ }
+  try {
+    const res9 = await fetch('/api/population-status');
+    const ps = await res9.json();
+    populationStatus = ps.data || {};
+    populationStatusConfigured = !!ps.configured;
+    populationStatusCitation = ps.citation || '';
+  } catch(e){ /* non-fatal — the panel shows its "not connected" message */ }
+  try {
+    const res10 = await fetch('/notable-events.json');
+    const ne = await res10.json();
+    notableEvents = (ne.events || []).filter(e => e && e.id && e.lat != null && e.lon != null);
+  } catch(e){ notableEvents = []; }
 
   // Order matters: annotate (needs oceanPoints + all polygon layers already
   // loaded) before anomaly detection and filter population, so every
@@ -844,10 +1359,12 @@ async function loadData(){
   // _inPADDDZone/historicalSstCelsius available.
   annotateOccurrences();
   computeAnomalies();
+  computeHotspots();
   populateFilterControls();
   applyFilters();
 
   render();
+  renderDataPanels();
   drawTrend();
 }
 
