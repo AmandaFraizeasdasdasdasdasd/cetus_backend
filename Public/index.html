@@ -22,6 +22,7 @@
     --land:#1C3040;
     --sma:#5B8DEF;
     --mpa:#4FA36A;
+    --track:#B49BE8;
     --paddd:#C9584F;
   }
   html,body{height:100%;}
@@ -173,6 +174,16 @@
   .mpa-zone.hidden{display:none;}
   .paddd-zone{fill:var(--paddd); opacity:0.22; stroke:var(--paddd); stroke-width:0.8; stroke-dasharray:3 2;}
   .paddd-zone.hidden{display:none;}
+  .view-btns{display:flex; gap:4px; width:100%; order:-1; margin-bottom:2px;}
+  .view-btn{background:none; border:1px solid var(--line); color:var(--ink-dim); border-radius:12px; padding:2px 10px; font-size:11px; cursor:pointer;}
+  .view-btn.on{border-color:var(--teal); color:var(--teal);}
+  .track-line{fill:none; stroke:var(--track); stroke-width:0.9; opacity:0.45; stroke-linejoin:round; stroke-linecap:round;}
+  .track-line.dim{opacity:0.15;}
+  .track-line.active{stroke-width:2.4; opacity:1;}
+  .track-hit{fill:none; stroke:transparent; stroke-width:9; cursor:pointer; pointer-events:stroke;}
+  .track-end{fill:var(--track); stroke:var(--bg-panel); stroke-width:1;}
+  .track-note{background:rgba(180,155,232,0.12); border:1px solid var(--track); color:var(--ink-dim); border-radius:3px; padding:8px 10px; font-size:12px; margin:10px 0 0; line-height:1.5;}
+  .track-note a{color:var(--teal); text-decoration:none; overflow-wrap:anywhere;}
   .zone-btn.on{background:var(--coral); color:var(--bg-panel);}
   .drilling-body{padding:16px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:24px;}
   @media (max-width:700px){.drilling-body{grid-template-columns:minmax(0,1fr);}}
@@ -211,6 +222,7 @@
   .sw-live::after{content:''; position:absolute; left:5px; top:5px; width:6px; height:6px; border-radius:50%; background:var(--teal); animation:blink 1.6s ease-in-out infinite;}
   .sw-lease::after{content:''; position:absolute; inset:2px; background:var(--coral); opacity:0.5; border:1px solid var(--coral);}
   .sw-sma::after{content:''; position:absolute; inset:2px; background:var(--sma); opacity:0.5; border:1px solid var(--sma);}
+  .sw-track::after{content:''; position:absolute; left:0; right:0; top:7px; height:2px; background:var(--track);}
   .sw-mpa::after{content:''; position:absolute; inset:2px; background:var(--mpa); opacity:0.5; border:1px solid var(--mpa);}
   .sw-paddd::after{content:''; position:absolute; inset:2px; background:var(--paddd); opacity:0.4; border:1px dashed var(--paddd);}
   @keyframes lgpulse{0%{transform:scale(0.45); opacity:0.9;} 100%{transform:scale(1.15); opacity:0;}}
@@ -269,12 +281,14 @@
   </div>
 
   <div class="panel map-wrap" id="mapPanel">
-    <div class="panel-head"><span>Live sightings map · worldwide</span><span class="mono" id="mapCoords">—</span></div>
+    <div class="panel-head"><span id="mapTitle">Live sightings map · worldwide</span><span class="mono" id="mapCoords">—</span></div>
     <div class="layer-toggles">
       <label class="layer-toggle"><input type="checkbox" id="toggleLeases"><span>GOM drilling leases</span></label>
       <label class="layer-toggle"><input type="checkbox" id="toggleSMA"><span>Right whale speed zones</span></label>
       <label class="layer-toggle"><input type="checkbox" id="toggleMPA"><span>MPA boundaries</span></label>
       <label class="layer-toggle"><input type="checkbox" id="togglePADDD"><span>Documented downgrades</span></label>
+      <span class="view-btns"><button class="view-btn on" data-view="world">World</button><button class="view-btn" data-view="epac">Zoom: E. Pacific</button></span>
+      <label class="layer-toggle"><input type="checkbox" id="toggleTracks"><span>Historical tracks (blue whales, 1993–2008)</span></label>
     </div>
     <div class="svg-scroll">
       <svg id="mapSvg" viewBox="0 0 640 520" preserveAspectRatio="xMidYMid meet" style="width:100%; min-width:480px; display:block;"></svg>
@@ -304,6 +318,7 @@
       <div class="legend-item"><span class="sw sw-sma"></span><span><b>Blue shading</b> — right whale vessel speed-restriction zones, US Atlantic (NOAA).</span></div>
       <div class="legend-item"><span class="sw sw-mpa"></span><span><b>Green shading</b> — US Marine Protected Areas (NOAA).</span></div>
       <div class="legend-item"><span class="sw sw-paddd"></span><span><b>Red dashed shading</b> — zones where protection was loosened: Australia's 2018 marine park rezoning (PADDDtracker).</span></div>
+      <div class="legend-item"><span class="sw sw-track"></span><span><b>Purple lines</b> — historical satellite tracks: 143 blue whales tagged off California, Mexico and Costa Rica, 1993–2008 (Mate et al. 2019, Movebank). Each line is one whale's route. These are past tracks, not live positions. Click a line for details.</span></div>
     </div>
   </div>
 
@@ -513,17 +528,74 @@ let zoneVisible = false;
 let smaVisible = false;
 let mpaVisible = false;
 let padddVisible = false;
+let tracksVisible = false;
+let historicalTracks = [];   // public/blue-whale-tracks.json, loaded the first time the layer is turned on
+let tracksMeta = null;
+let tracksLoading = false;
+let selectedTrackId = null;  // set when a historical track line is selected
 let selectedSpecies = new Set();
 let selectedRegion = 'all';
 let onlyAnomalies = false;
 let notableEvents = [];      // hand-checked displacement events (public/notable-events.json)
 let selectedEventId = null;  // set when a red diamond / event is selected instead of a sighting
 
+function fmtKm(km){
+  const f = v => v < 10 ? v.toFixed(1) : Math.round(v).toLocaleString();
+  return `${f(km)} km (${f(km * 0.621371)} mi)`;
+}
+let regionNames = null;
+try { regionNames = new Intl.DisplayNames(['en'], {type:'region'}); } catch(e) {}
+function placeName(t){
+  if(!t) return '';
+  if(t.country === 'US' && t.admin) return `${t.name}, ${t.admin}`;
+  let country = t.country;
+  try { if(regionNames && t.country) country = regionNames.of(t.country); } catch(e) {}
+  return `${t.name}, ${country}`;
+}
+// "21 km (13 mi) N of Seaside, CA" -- distance and direction from the nearest town of 10,000+ people
+function townText(o){
+  const t = o.nearestTown;
+  return t ? `${fmtKm(t.km)} ${t.direction} of ${placeName(t)}` : null;
+}
+function coastText(o){
+  if(o.insideCoastline){
+    return o.coastKm != null
+      ? `Inside the mapped coastline (likely a bay, harbor or river), about ${fmtKm(o.coastKm)} from it`
+      : 'Inside the mapped coastline (likely a bay, harbor or river)';
+  }
+  if(o.coastKm != null) return o.coastKm < 1 ? 'Within 1 km of shore' : `About ${fmtKm(o.coastKm)} offshore`;
+  if(o.coastFar) return 'Far offshore';
+  return null;
+}
+function mapLinksHtml(lat, lon){
+  const la = Number(lat).toFixed(5), lo = Number(lon).toFixed(5);
+  return `<a href="https://www.openstreetmap.org/?mlat=${la}&amp;mlon=${lo}#map=10/${la}/${lo}" target="_blank" rel="noopener" style="color:var(--teal);">OpenStreetMap ↗</a> · <a href="https://www.google.com/maps/search/?api=1&amp;query=${la},${lo}" target="_blank" rel="noopener" style="color:var(--teal);">Google Maps ↗</a>`;
+}
+function fmtTemp(c){
+  return `${c.toFixed(1)}°C (${(c*9/5+32).toFixed(1)}°F)`;
+}
 function esc(s){
   return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function fmtLatLon(lat, lon){
   return `${Math.abs(lat).toFixed(2)}°${lat>=0?'N':'S'}, ${Math.abs(lon).toFixed(2)}°${lon>=0?'E':'W'}`;
+}
+// "Scientific (Common)" -- the one format used for species names everywhere.
+function speciesLabel(species){
+  const common = commonNameFor(species);
+  return (common && common !== species) ? `${species} (${common})` : (species || '');
+}
+// OBIS returns humpback subspecies as separate names. The dashboard groups
+// them under the species and shows the subspecies as a detail.
+const SUBSPECIES_NOTES = {
+  'Megaptera novaeangliae kuzira': 'North Pacific humpback',
+  'Megaptera novaeangliae australis': 'Southern Hemisphere humpback',
+  'Megaptera novaeangliae novaeangliae': 'North Atlantic humpback',
+};
+function subspeciesNote(o){
+  if(!o.speciesFull || o.speciesFull === o.species) return '';
+  const note = SUBSPECIES_NOTES[o.speciesFull];
+  return `Subspecies: ${o.speciesFull}${note ? ' — ' + note : ''}`;
 }
 function commonNameFor(species){
   const info = speciesImages[species];
@@ -584,8 +656,7 @@ function renderIUCNPanel(){
       <div class="iucn-card">
         ${speciesImgHtml(sp, 44)}
         <div class="iucn-card-body">
-          <div class="iucn-name">${commonName}</div>
-          <div class="iucn-sci">${sp}</div>
+          <div class="iucn-name" style="margin-bottom:6px;">${esc(speciesLabel(sp))}</div>
           <span class="iucn-badge" style="background:${color}; color:var(--bg-panel);">${st.redListCategoryCode || st.redListCategory || '—'}</span>
           <span class="iucn-trend">${trendArrow(st.populationTrend)} ${st.populationTrend || 'Unknown trend'}</span>
           ${st.assessmentYear ? `<div class="iucn-sci" style="margin-top:4px;">Assessed ${st.assessmentYear}</div>` : ''}
@@ -650,10 +721,12 @@ const HOTSPOT_RADIUS_KM = 100;
 
 function selectOccurrence(id){
   selectedEventId = null;
+  selectedTrackId = null;
   selectedId = id;
   render();
 }
 function selectEvent(id){
+  selectedTrackId = null;
   selectedEventId = id;
   render();
 }
@@ -669,11 +742,13 @@ function jumpToOccurrence(id){
   populateFilterControls();
   applyFilters();
   selectedEventId = null;
+  selectedTrackId = null;
   selectedId = id;
   render();
   document.getElementById('mapPanel').scrollIntoView({behavior:'smooth', block:'start'});
 }
 function jumpToEvent(id){
+  selectedTrackId = null;
   selectedEventId = id;
   render();
   document.getElementById('mapPanel').scrollIntoView({behavior:'smooth', block:'start'});
@@ -695,7 +770,7 @@ function renderDisplacementAlerts(){
     html += events.map(ev=>`
       <div class="alert-row" data-ev="${esc(ev.id)}">
         <span class="alert-icon" style="color:var(--paddd);">◆</span>
-        <span class="alert-text"><b style="color:var(--ink);">${esc(commonNameFor(ev.species))}</b> — ${esc(ev.name)}
+        <span class="alert-text"><b style="color:var(--ink);">${esc(speciesLabel(ev.species))}</b> — ${esc(ev.name)}
           <span class="alert-sub">${esc(ev.blurb || '')}</span></span>
         <span class="alert-meta">${esc(ev.dateLabel || '')}</span>
       </div>`).join('');
@@ -707,7 +782,7 @@ function renderDisplacementAlerts(){
       ${rare.slice(0,30).map(o=>`
         <div class="alert-row" data-id="${esc(o.id)}">
           <span class="alert-icon">◌</span>
-          <span class="alert-text"><b>${esc(commonNameFor(o.species))}</b> — ${esc(o.anomalyReason)}</span>
+          <span class="alert-text"><b>${esc(speciesLabel(o.species))}</b> — ${esc(o.anomalyReason)}</span>
           <span class="alert-meta">${o.date ? new Date(o.date).toLocaleDateString() : 'undated'}</span>
         </div>`).join('')}
     </details>`;
@@ -757,7 +832,7 @@ function renderHotspots(){
       <div class="hs-loc">${esc(h.areas.join(' / ') || (h.lat.toFixed(1)+'°, '+h.lon.toFixed(1)+'°'))}</div>
       <div class="hs-detail">
         ${h.years.join(' · ')}<br>
-        ${esc(h.species.map(commonNameFor).join(', '))}
+        ${esc(h.species.map(speciesLabel).join(', '))}
       </div>
     </div>`).join('');
   body.innerHTML = `<div class="hotspot-grid">${cards}</div>
@@ -799,8 +874,7 @@ function populateFilterControls(){
     thumb.innerHTML = speciesImgHtml(sp, 18);
     thumb.style.display = 'inline-flex';
     label.appendChild(thumb);
-    const common = commonNameFor(sp);
-    label.appendChild(document.createTextNode(common !== sp ? `${sp} (${common})` : sp));
+    label.appendChild(document.createTextNode(speciesLabel(sp)));
     speciesBox.appendChild(label);
   });
 
@@ -835,7 +909,23 @@ let populationStatus = {}; // scientificName -> { redListCategory, redListCatego
 let populationStatusConfigured = false;
 let populationStatusCitation = '';
 
-const mapBounds = {latMin:-70, latMax:80, lonMin:-180, lonMax:180};
+const MAP_VIEWS = {
+  world:   {latMin:-70, latMax:80, lonMin:-180, lonMax:180, latStep:20, lonStep:30, label:'worldwide'},
+  epac:    {latMin:0,   latMax:56, lonMin:-160, lonMax:-78, latStep:10, lonStep:10, label:'Eastern North Pacific'},
+};
+let mapView = 'world';
+const mapBounds = Object.assign({}, MAP_VIEWS.world);
+function setMapView(v){
+  mapView = MAP_VIEWS[v] ? v : 'world';
+  Object.assign(mapBounds, MAP_VIEWS[mapView]);
+  document.querySelectorAll('.view-btn').forEach(b=> b.classList.toggle('on', b.dataset.view === mapView));
+  const t = document.getElementById('mapTitle');
+  if(t) t.textContent = 'Live sightings map · ' + MAP_VIEWS[mapView].label;
+  drawMap();
+}
+function inView(lat, lon){
+  return lat >= mapBounds.latMin && lat <= mapBounds.latMax && lon >= mapBounds.lonMin && lon <= mapBounds.lonMax;
+}
 const mapW = 640, mapH = 520, mapPad = 40;
 function project(lat, lon){
   const x = mapPad + ( (lon - mapBounds.lonMin) / (mapBounds.lonMax - mapBounds.lonMin) ) * (mapW - mapPad*2);
@@ -853,9 +943,32 @@ function daysAgo(dateStr){
   if(isNaN(d)) return Infinity;
   return (Date.now() - d.getTime()) / 86400000;
 }
+let sstBuckets = null; // 5-degree cells -> temperature points, rebuilt when data reloads
+function buildSSTIndex(){
+  sstBuckets = new Map();
+  for(const p of oceanPoints){
+    if(p.sstCelsius==null) continue;
+    const k = Math.floor(p.lat/5)+','+Math.floor(p.lon/5);
+    if(!sstBuckets.has(k)) sstBuckets.set(k, []);
+    sstBuckets.get(k).push(p);
+  }
+}
 function nearestSST(lat, lon){
   if(!oceanPoints.length) return null;
+  if(!sstBuckets) buildSSTIndex();
+  const bi = Math.floor(lat/5), bj = Math.floor(lon/5);
   let best=null, bestD=Infinity;
+  for(let di=-1; di<=1; di++) for(let dj=-1; dj<=1; dj++){
+    const cell = sstBuckets.get((bi+di)+','+(bj+dj));
+    if(!cell) continue;
+    for(const p of cell){
+      const dd = (p.lat-lat)*(p.lat-lat) + (p.lon-lon)*(p.lon-lon);
+      if(dd<bestD){bestD=dd; best=p;}
+    }
+  }
+  if(best) return best;
+  // Nothing nearby (e.g. far inland) -- fall back to scanning everything.
+  best=null; bestD=Infinity;
   for(const p of oceanPoints){
     if(p.sstCelsius==null) continue;
     const dd = (p.lat-lat)*(p.lat-lat) + (p.lon-lon)*(p.lon-lon);
@@ -875,11 +988,25 @@ function pointInRing(lat, lon, ring){
   }
   return inside;
 }
+function ringBBox(p){
+  if(!p._bb){
+    let a=180, b=-180, c=90, d=-90;
+    for(const pt of p.ring){ if(pt[0]<a)a=pt[0]; if(pt[0]>b)b=pt[0]; if(pt[1]<c)c=pt[1]; if(pt[1]>d)d=pt[1]; }
+    p._bb = [a,b,c,d];
+  }
+  return p._bb;
+}
+function inPolygon(lat, lon, p){
+  if(!p.ring || p.ring.length < 3) return false;
+  const bb = ringBBox(p);
+  if(lon < bb[0] || lon > bb[1] || lat < bb[2] || lat > bb[3]) return false;
+  return pointInRing(lat, lon, p.ring);
+}
 function isInAnyLease(lat, lon){
-  return leasePolygons.some(p => pointInRing(lat, lon, p.ring));
+  return leasePolygons.some(p => inPolygon(lat, lon, p));
 }
 function findMatchingZone(lat, lon, polygons){
-  return polygons.find(p => pointInRing(lat, lon, p.ring)) || null;
+  return polygons.find(p => inPolygon(lat, lon, p)) || null;
 }
 // Precomputes SST (current + historical-from-backend) and polygon-area
 // membership once per data load, rather than on every render -- nearestSST
@@ -903,30 +1030,130 @@ function annotateOccurrences(){
   });
 }
 
+// Turns a [lon,lat] ring into SVG path strings. Shapes that cross the 180°
+// date line (e.g. Russia's far east) would otherwise get joined straight
+// across the whole map as a stripe, so longitudes are made continuous and a
+// wrapped copy is drawn on the other edge. The map clips anything outside.
+function ringPaths(ring){
+  if(!ring || ring.length < 3) return [];
+  const pts = [];
+  let prev = null;
+  for(const pt of ring){
+    let lon = pt[0];
+    if(prev !== null){
+      while(lon - prev > 180) lon -= 360;
+      while(lon - prev < -180) lon += 360;
+    }
+    pts.push([lon, pt[1]]);
+    prev = lon;
+  }
+  let min = Infinity, max = -Infinity;
+  for(const q of pts){ if(q[0]<min) min=q[0]; if(q[0]>max) max=q[0]; }
+  const shifts = [0];
+  if(max > 180) shifts.push(-360);
+  if(min < -180) shifts.push(360);
+  return shifts.map(sh => pts.map((q,i)=>{
+    const [x,y] = project(q[1], q[0]+sh);
+    return (i===0?'M':'L') + x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ') + ' Z');
+}
+
+// Path for one historical track (points are [lon, lat, hours since tagging]).
+function trackPath(pts){
+  if(!pts || pts.length < 2) return '';
+  let d = '';
+  pts.forEach((p,i)=>{
+    const [x,y] = project(p[1], p[0]);
+    // Break the line across the date line, and across gaps of 3+ days with no
+    // fix, so we don't draw a route the tag never recorded.
+    const jump = i>0 && (Math.abs(p[0] - pts[i-1][0]) > 180 || (p[2] - pts[i-1][2]) >= 72);
+    d += (i===0 || jump ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+  });
+  return d.trim();
+}
+function selectTrack(id){
+  selectedEventId = null;
+  selectedTrackId = id;
+  render();
+}
+function fmtDate(iso){
+  const d = new Date(iso + 'T00:00:00Z');
+  return isNaN(d) ? iso : d.toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric', timeZone:'UTC'});
+}
+function trackFarthest(t){
+  const a = t.pts[0]; let best = a, bestKm = 0;
+  t.pts.forEach(p=>{ const k = haversineKm(a[1], a[0], p[1], p[0]); if(k > bestKm){ bestKm = k; best = p; } });
+  return { pt: best, km: bestKm };
+}
+function trackDetailHtml(t){
+  const row = (k, v) => (v!=null && v!=='') ? `<div class="kv"><span class="k">${k}</span><span class="v">${esc(v)}</span></div>` : '';
+  const far = trackFarthest(t);
+  const last = t.pts[t.pts.length-1];
+  const m = tracksMeta || {};
+  return `
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+      ${speciesImgHtml('Balaenoptera musculus', 56)}
+      <div><div style="font-weight:600;">${esc(speciesLabel('Balaenoptera musculus'))}</div>
+      <div style="font-size:11.5px; color:var(--ink-faint);">Historical satellite track · whale ${esc(t.id)}</div></div>
+    </div>
+    ${row('Tagged at', t.site)}
+    ${row('Tracked', `${fmtDate(t.start)} – ${fmtDate(t.end)} (${t.days} days)`)}
+    ${row('Distance covered', t.km ? fmtKm(t.km) : '')}
+    ${row('Farthest from tag site', far.km ? `${fmtKm(far.km)} · ${fmtLatLon(far.pt[1], far.pt[0])}` : '')}
+    ${row('Last position', fmtLatLon(last[1], last[0]))}
+    ${row('Sex', t.sex)}
+    ${row('Life stage', t.lifeStage)}
+    ${row('Positions shown', t.pts.length.toLocaleString())}
+    <div class="track-note">
+      Historical data, not a live position. The circle marks where the whale was tagged; the square marks the last position before the tag stopped transmitting.<br><br>
+      <b>Source:</b> ${esc(m.citation || 'Mate et al. 2019, Movebank Data Repository')}${m.doiUrl ? ` <a href="${esc(m.doiUrl)}" target="_blank" rel="noopener">${esc(m.doiUrl)}</a>` : ''}<br><br>
+      <span style="color:var(--ink-faint);">${esc(m.processing || '')}</span>
+    </div>`;
+}
+async function ensureTracksLoaded(){
+  if(historicalTracks.length || tracksLoading) return;
+  tracksLoading = true;
+  document.getElementById('mapInfo').textContent = 'Loading historical tracks…';
+  try {
+    const r = await fetch('/blue-whale-tracks.json');
+    const j = await r.json();
+    historicalTracks = j.tracks || [];
+    tracksMeta = j;
+  } catch(e){
+    historicalTracks = [];
+    document.getElementById('mapInfo').textContent = 'Could not load historical tracks (blue-whale-tracks.json missing?).';
+  }
+  tracksLoading = false;
+}
+
 function drawMap(){
   const svg = document.getElementById('mapSvg');
   svg.innerHTML = '';
 
+  const defs = svgEl('defs',{});
+  const clip = svgEl('clipPath',{id:'mapClip'});
+  clip.appendChild(svgEl('rect',{x:mapPad, y:mapPad, width:mapW-2*mapPad, height:mapH-2*mapPad}));
+  defs.appendChild(clip);
+  svg.appendChild(defs);
+
   // Land outlines render first so the grid, lease areas, and whale
   // sightings all draw on top of them.
+  const landG = svgEl('g',{'clip-path':'url(#mapClip)'});
+  svg.appendChild(landG);
   landPolygons.forEach(p=>{
-    const ring = p.ring;
-    if(!ring || ring.length < 3) return;
-    const d = ring.map((pt,i)=>{
-      const [x,y] = project(pt[1], pt[0]); // ring points are [lon,lat]
-      return (i===0?'M':'L') + x.toFixed(1) + ',' + y.toFixed(1);
-    }).join(' ') + ' Z';
-    svg.appendChild(svgEl('path',{d, class:'coast'}));
+    ringPaths(p.ring).forEach(d => landG.appendChild(svgEl('path',{d, class:'coast'})));
   });
 
-  for(let lat=-60; lat<=80; lat+=20){
+  const latStart = Math.ceil(mapBounds.latMin / mapBounds.latStep) * mapBounds.latStep;
+  for(let lat=latStart; lat<=mapBounds.latMax; lat+=mapBounds.latStep){
     const [x1,y1] = project(lat, mapBounds.lonMin);
     const [x2,y2] = project(lat, mapBounds.lonMax);
     svg.appendChild(svgEl('line',{x1,y1,x2,y2,class:'grid-line'}));
     const lbl = svgEl('text',{x:6,y:y1+3,class:'axis-label'}); lbl.textContent = (lat>=0?lat+'°N':(-lat)+'°S');
     svg.appendChild(lbl);
   }
-  for(let lon=-180; lon<=180; lon+=30){
+  const lonStart = Math.ceil(mapBounds.lonMin / mapBounds.lonStep) * mapBounds.lonStep;
+  for(let lon=lonStart; lon<=mapBounds.lonMax; lon+=mapBounds.lonStep){
     const [x1,y1] = project(mapBounds.latMin, lon);
     const [x2,y2] = project(mapBounds.latMax, lon);
     svg.appendChild(svgEl('line',{x1,y1,x2,y2,class:'grid-line'}));
@@ -938,15 +1165,12 @@ function drawMap(){
   const [eqx2,eqy2] = project(0, mapBounds.lonMax);
   svg.appendChild(svgEl('line',{x1:eqx1,y1:eqy1,x2:eqx2,y2:eqy2, class:'grid-line', 'stroke-dasharray':'2 3'}));
 
+  const zonesG = svgEl('g',{'clip-path':'url(#mapClip)'});
+  svg.appendChild(zonesG);
   function drawRingLayer(polygons, visible, className){
     if(!visible) return;
     polygons.forEach(p=>{
-      if(!p.ring || p.ring.length < 3) return;
-      const d = p.ring.map((pt,i)=>{
-        const [x,y] = project(pt[1], pt[0]); // ring points are [lon,lat]
-        return (i===0?'M':'L') + x.toFixed(1) + ',' + y.toFixed(1);
-      }).join(' ') + ' Z';
-      svg.appendChild(svgEl('path',{d, class:className}));
+      ringPaths(p.ring).forEach(d => zonesG.appendChild(svgEl('path',{d, class:className})));
     });
   }
   drawRingLayer(leasePolygons, zoneVisible, 'lease-zone');
@@ -954,14 +1178,44 @@ function drawMap(){
   drawRingLayer(mpaPolygons, mpaVisible, 'mpa-zone');
   drawRingLayer(padddZones, padddVisible, 'paddd-zone');
 
+  // Historical satellite tracks (one line per whale). Drawn under the live
+  // sightings so current dots stay clickable on top.
+  if(tracksVisible && historicalTracks.length){
+    const tracksG = svgEl('g',{'clip-path':'url(#mapClip)'});
+    svg.appendChild(tracksG);
+    const ordered = historicalTracks.filter(t=>t.id!==selectedTrackId);
+    const selT = historicalTracks.find(t=>t.id===selectedTrackId);
+    if(selT) ordered.push(selT); // selected line last so it sits on top
+    ordered.forEach(t=>{
+      const d = trackPath(t.pts);
+      if(!d) return;
+      const active = t.id === selectedTrackId;
+      tracksG.appendChild(svgEl('path',{d, class:'track-line' + (active?' active':(selectedTrackId?' dim':''))}));
+      const hit = svgEl('path',{d, class:'track-hit'});
+      const tip = svgEl('title',{});
+      tip.textContent = `Blue whale ${t.id} · ${t.start} to ${t.end} · tagged at ${t.site}`;
+      hit.appendChild(tip);
+      hit.addEventListener('click', ()=> selectTrack(t.id));
+      tracksG.appendChild(hit);
+      if(active){
+        const a = t.pts[0], b = t.pts[t.pts.length-1];
+        const [ax,ay] = project(a[1], a[0]);
+        const [bx,by] = project(b[1], b[0]);
+        tracksG.appendChild(svgEl('circle',{cx:ax, cy:ay, r:3.5, class:'track-end'}));
+        tracksG.appendChild(svgEl('rect',{x:bx-3, y:by-3, width:6, height:6, class:'track-end'}));
+      }
+    });
+  }
+
   hotspots.forEach(h=>{
+    if(!inView(h.lat, h.lon)) return;
     const [hx,hy] = project(h.lat, h.lon);
     svg.appendChild(svgEl('circle',{cx:hx, cy:hy, r:13, class:'hotspot-marker'}));
   });
 
   occurrences.forEach(o=>{
-    if(o.lat==null || o.lon==null) return;
-    const isActive = !selectedEventId && o.id === selectedId;
+    if(o.lat==null || o.lon==null || !inView(o.lat, o.lon)) return;
+    const isActive = !selectedEventId && !selectedTrackId && o.id === selectedId;
     const [x,y] = project(o.lat, o.lon);
     if(isActive) svg.appendChild(svgEl('circle',{cx:x,cy:y,r:12,class:'pulse'}));
     const cls = 'occ-dot' + (isActive?' active':'') + (o.anomaly?' anomaly':'');
@@ -969,7 +1223,7 @@ function drawMap(){
     // Larger invisible circle on top so dots are easy to click or tap.
     const hit = svgEl('circle',{cx:x,cy:y,r:11,class:'hit'});
     const tip = svgEl('title',{});
-    tip.textContent = `${commonNameFor(o.species)} · ${o.date ? new Date(o.date).toLocaleDateString() : 'undated'}`;
+    tip.textContent = `${speciesLabel(o.species)} · ${o.date ? new Date(o.date).toLocaleDateString() : 'undated'}`;
     hit.appendChild(tip);
     hit.addEventListener('click', ()=> selectOccurrence(o.id));
     svg.appendChild(hit);
@@ -977,6 +1231,7 @@ function drawMap(){
 
   // Documented displacement events: red diamonds, oldest first so the newest sits on top.
   notableEvents.slice().sort((a,b)=> new Date(a.date||0) - new Date(b.date||0)).forEach(ev=>{
+    if(!inView(ev.lat, ev.lon)) return;
     const [x,y] = project(ev.lat, ev.lon);
     const active = ev.id === selectedEventId;
     if(active) svg.appendChild(svgEl('circle',{cx:x,cy:y,r:14,class:'pulse'}));
@@ -988,9 +1243,11 @@ function drawMap(){
     svg.appendChild(m);
   });
 
-  const sel = !selectedEventId ? occurrences.find(o=>o.id===selectedId) : null;
-  const selEv = selectedEventId ? notableEvents.find(e=>e.id===selectedEventId) : null;
+  const selTr = selectedTrackId ? historicalTracks.find(t=>t.id===selectedTrackId) : null;
+  const sel = (!selectedEventId && !selTr) ? occurrences.find(o=>o.id===selectedId) : null;
+  const selEv = (selectedEventId && !selTr) ? notableEvents.find(e=>e.id===selectedEventId) : null;
   document.getElementById('mapCoords').textContent =
+    selTr ? fmtLatLon(selTr.pts[0][1], selTr.pts[0][0]) + ' (tag site)' :
     sel ? fmtLatLon(sel.lat, sel.lon) : (selEv ? fmtLatLon(selEv.lat, selEv.lon) : '—');
 }
 
@@ -1082,7 +1339,7 @@ function renderList(){
       ${speciesImgHtml(o.species, 32)}
       <div class="dot ${o.anomaly?'anomaly':(recent?'recent':'older')}" style="margin-top:11px;"></div>
       <div>
-        <div class="id mono">${dateStr} · ${esc(commonNameFor(o.species))}${o.anomaly ? '<span class="rare-tag" title="Rare region in this dataset (low confidence)">rare region</span>' : ''}</div>
+        <div class="id mono">${dateStr} · ${esc(speciesLabel(o.species))}${o.anomaly ? '<span class="rare-tag" title="Rare region in this dataset (low confidence)">rare region</span>' : ''}</div>
         <div class="sub">${esc(o.dataset || 'Unknown source')}</div>
       </div>`;
     list.appendChild(row);
@@ -1098,14 +1355,14 @@ function eventDetailHtml(ev){
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
       ${speciesImgHtml(ev.species, 56)}
       <div>
-        <div style="font-size:13px; font-weight:600;">${esc(common)}</div>
-        ${common !== ev.species ? `<div style="font-size:11px; color:var(--ink-faint); font-style:italic;">${esc(ev.species)}</div>` : ''}
+        <div style="font-size:13px; font-weight:600;">${esc(speciesLabel(ev.species))}</div>
       </div>
     </div>
     <div class="event-note">◆ Documented displacement event — ${esc(ev.dateLabel || '')}</div>
     <div class="kv"><span class="k">Where</span><span class="v">${esc(ev.name)}</span></div>
     ${ev.area ? `<div class="kv"><span class="k">Area</span><span class="v">${esc(ev.area)}</span></div>` : ''}
     <div class="kv"><span class="k">Position</span><span class="v">${fmtLatLon(ev.lat, ev.lon)}${ev.approximate ? ' (approx.)' : ''}</span></div>
+    <div class="kv"><span class="k">See this spot</span><span class="v">${mapLinksHtml(ev.lat, ev.lon)}</span></div>
     <p class="trend-note" style="margin:10px 0;">${esc(ev.summary || '')}</p>
     ${(ev.sources && ev.sources.length) ? `<div class="src-links">${ev.sources.map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)} ↗</a>`).join('')}</div>` : ''}
     ${nearby.length ? `<div style="margin-top:10px; font-size:11.5px; color:var(--ink-faint);">Other documented events nearby:<div style="margin-top:4px;">${nearby.map(e=>`<button class="nearby-btn" data-ev="${esc(e.id)}">${esc(e.dateLabel || e.name)}</button>`).join('')}</div></div>` : ''}
@@ -1115,6 +1372,14 @@ function eventDetailHtml(ev){
 function renderDetail(){
   const body = document.getElementById('detailBody');
   const idEl = document.getElementById('detailId');
+  if(selectedTrackId){
+    const t = historicalTracks.find(t=>t.id===selectedTrackId);
+    if(t){
+      idEl.textContent = t.start.slice(0,4);
+      body.innerHTML = trackDetailHtml(t);
+      return;
+    }
+  }
   if(selectedEventId){
     const ev = notableEvents.find(e=>e.id===selectedEventId);
     if(ev){
@@ -1134,13 +1399,16 @@ function renderDetail(){
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
       ${speciesImgHtml(o.species, 56)}
       <div>
-        <div style="font-size:13px; font-weight:600;">${esc(common)}</div>
-        ${common !== o.species ? `<div style="font-size:11px; color:var(--ink-faint); font-style:italic;">${esc(o.species)}</div>` : ''}
+        <div style="font-size:13px; font-weight:600;">${esc(speciesLabel(o.species))}</div>
+        ${subspeciesNote(o) ? `<div style="font-size:11px; color:var(--ink-faint); font-style:italic;">${esc(subspeciesNote(o))}</div>` : ''}
       </div>
     </div>
     ${o.anomaly ? `<div class="anomaly-note" style="margin:0 0 10px;">Rare region in this dataset (low confidence): ${esc(o.anomalyReason)}. This often reflects where data is collected, not unusual whale behavior.</div>` : ''}
     ${row('Date', o.date ? new Date(o.date).toLocaleString() : null)}
     ${row('Position', fmtLatLon(o.lat, o.lon))}
+    ${row('Nearest town (10,000+ people)', townText(o))}
+    ${row('Distance from coast (approx.)', coastText(o))}
+    <div class="kv"><span class="k">See this spot</span><span class="v">${mapLinksHtml(o.lat, o.lon)}</span></div>
     ${row('Ocean region', o._region)}
     ${row('Locality', o.locality)}
     ${row('Water body', o.waterBody)}
@@ -1152,14 +1420,14 @@ function renderDetail(){
     ${row('Source dataset', o.dataset)}
     ${row('Record type', o.basisOfRecord)}
     ${remarks ? `<div class="kv"><span class="k">Notes</span><span class="v" style="text-align:left;">${esc(remarks)}</span></div>` : ''}
-    ${row('Sea temperature that month', o.historicalSstCelsius!=null ? o.historicalSstCelsius.toFixed(1)+'°C' : null)}
-    ${row('Sea temperature now', o._sst!=null ? o._sst.toFixed(1)+'°C' : null)}
+    ${row('Sea temperature that month', o.historicalSstCelsius!=null ? fmtTemp(o.historicalSstCelsius) : null)}
+    ${row('Sea temperature now', o._sst!=null ? fmtTemp(o._sst) : null)}
     <div class="kv"><span class="k">In active GOM lease area</span><span class="v">${o._inLeaseArea ? 'Yes' : 'No'}</span></div>
     <div class="kv"><span class="k">Right whale speed zone</span><span class="v">${o._inRightWhaleSMA ? esc(o._smaName || 'Yes') : 'No'}</span></div>
     <div class="kv"><span class="k">Marine Protected Area</span><span class="v">${o._inMPA ? esc(o._mpaName || 'Yes') : 'No'}</span></div>
     ${o._inMPA && o._mpaProtectionLevel ? `<div class="kv"><span class="k">Protection level</span><span class="v">${esc(o._mpaProtectionLevel)}</span></div>` : ''}
     ${o._inPADDDZone ? `<div class="event-note" style="margin-top:10px;">⚠ In a documented protection-change zone — ${esc(o._padddEvent.name)} (${esc(o._padddEvent.year)}): ${esc(o._padddEvent.zonePreLabel)} → ${esc(o._padddEvent.zonePostLabel)}${o._padddEvent.protectionLoosened ? ' (protection loosened)' : ''}</div>` : ''}
-    <p class="trend-note" style="margin-top:12px; font-size:11px; color:var(--ink-faint);">This is one sighting record, not a tracked individual. Following a single whale over time needs photo-ID or satellite-tag data (the Argos partnership is still pending).</p>
+    <p class="trend-note" style="margin-top:12px; font-size:11px; color:var(--ink-faint);">This is one sighting record, not a tracked individual. Following a single whale over time needs photo-ID or satellite-tag data (the Argos partnership is still pending). Distances use a generalized coastline, so near-shore figures can be off by a few km.</p>
   `;
 }
 
@@ -1200,7 +1468,7 @@ function drawSSTComparison(){
   [minV, Math.round((minV+maxV)/2), maxV].forEach(v=>{
     const y = yFor(v);
     svg.appendChild(svgEl('line',{x1:padL,y1:y,x2:W-padR,y2:y,class:'grid-line'}));
-    const lbl = svgEl('text',{x:2,y:y+3,class:'axis-label'}); lbl.textContent = v+'°C';
+    const lbl = svgEl('text',{x:2,y:y+3,class:'axis-label'}); lbl.textContent = `${v}°C / ${Math.round(v*9/5+32)}°F`;
     svg.appendChild(lbl);
   });
 
@@ -1260,6 +1528,13 @@ function updateLiveBadge(){
 // a phone you don't have to scroll to the detail panel to see anything.
 function renderMapInfo(){
   const el = document.getElementById('mapInfo');
+  if(selectedTrackId){
+    const t = historicalTracks.find(t=>t.id===selectedTrackId);
+    if(t){
+      el.innerHTML = `${speciesImgHtml('Balaenoptera musculus', 36)}<div><b>${esc(speciesLabel('Balaenoptera musculus'))}</b> · historical track<br>Tagged at ${esc(t.site)} · ${esc(fmtDate(t.start))} – ${esc(fmtDate(t.end))} · ${esc(t.km ? fmtKm(t.km) : '')} <a href="#detailPanel">Full details ↓</a></div>`;
+      return;
+    }
+  }
   if(selectedEventId){
     const ev = notableEvents.find(e=>e.id===selectedEventId);
     if(ev){
@@ -1268,13 +1543,25 @@ function renderMapInfo(){
     }
   }
   const o = occurrences.find(o=>o.id===selectedId);
-  if(!o){ el.textContent = 'Click any dot or diamond on the map to see details.'; return; }
-  const common = commonNameFor(o.species);
-  el.innerHTML = `${speciesImgHtml(o.species, 36)}<div><b>${esc(common)}</b>${common !== o.species ? ` <i>${esc(o.species)}</i>` : ''}<br>${o.date ? new Date(o.date).toLocaleDateString() : 'undated'} · ${fmtLatLon(o.lat, o.lon)} · ${esc(o.dataset || 'unknown source')}${o.anomaly ? ' · rare region' : ''} <a href="#detailPanel">Full details ↓</a></div>`;
+  if(!o){ el.textContent = tracksVisible && historicalTracks.length
+      ? `Showing ${historicalTracks.length} historical blue whale tracks (1993–2008). Click a purple line for that whale's route.`
+      : 'Click any dot or diamond on the map to see details.'; return; }
+  el.innerHTML = `${speciesImgHtml(o.species, 36)}<div><b>${esc(speciesLabel(o.species))}</b><br>${o.date ? new Date(o.date).toLocaleDateString() : 'undated'} · ${fmtLatLon(o.lat, o.lon)}${o.nearestTown ? ' · ' + esc(townText(o)) : ''} · ${esc(o.dataset || 'unknown source')}${o.anomaly ? ' · rare region' : ''} <a href="#detailPanel">Full details ↓</a></div>`;
 }
 
 // Redraws everything that depends on what's selected or filtered.
 function render(){
+  // If the selected sighting or event is outside the zoomed view, zoom back out.
+  if(mapView !== 'world' && !selectedTrackId){
+    const o = !selectedEventId ? occurrences.find(o=>o.id===selectedId) : null;
+    const ev = selectedEventId ? notableEvents.find(e=>e.id===selectedEventId) : null;
+    const pt = ev || o;
+    if(pt && pt.lat != null && !inView(pt.lat, pt.lon)){
+      mapView = 'world'; Object.assign(mapBounds, MAP_VIEWS.world);
+      document.querySelectorAll('.view-btn').forEach(b=> b.classList.toggle('on', b.dataset.view === 'world'));
+      document.getElementById('mapTitle').textContent = 'Live sightings map · worldwide';
+    }
+  }
   renderList();
   renderDetail();
   drawMap();
@@ -1297,7 +1584,11 @@ async function loadData(){
   try {
     const res = await fetch('/api/whales');
     const w = await res.json();
-    allOccurrences = (w.data || []).slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0));
+    allOccurrences = (w.data || []).map(o=>{
+      const full = (o.species || '').trim();
+      const binomial = full.split(/\s+/).slice(0,2).join(' ');
+      return Object.assign({}, o, { species: binomial || full, speciesFull: full });
+    }).sort((a,b)=> new Date(b.date||0) - new Date(a.date||0));
     if(w.updatedAt) document.getElementById('dataUpdated').textContent = new Date(w.updatedAt).toLocaleString();
   } catch(e){
     document.getElementById('whaleList').innerHTML = '<div class="loading">Could not load whale data — is the backend running?</div>';
@@ -1306,6 +1597,7 @@ async function loadData(){
     const res2 = await fetch('/api/ocean');
     const o = await res2.json();
     oceanPoints = o.data || [];
+    sstBuckets = null;
   } catch(e){ /* non-fatal — SST readouts just show — */ }
   try {
     const res3 = await fetch('/api/leases');
@@ -1388,6 +1680,16 @@ document.getElementById('toggleMPA').addEventListener('change', (e)=>{
 document.getElementById('togglePADDD').addEventListener('change', (e)=>{
   padddVisible = e.target.checked;
   drawMap();
+});
+document.querySelectorAll('.view-btn').forEach(b=> b.addEventListener('click', ()=> setMapView(b.dataset.view)));
+document.getElementById('toggleTracks').addEventListener('change', async (e)=>{
+  tracksVisible = e.target.checked;
+  if(tracksVisible){
+    await ensureTracksLoaded();
+    if(mapView === 'world') setMapView('epac'); // tracks are tiny at world scale
+  }
+  if(!tracksVisible && selectedTrackId) selectedTrackId = null;
+  render();
 });
 
 loadData();

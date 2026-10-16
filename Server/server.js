@@ -420,6 +420,195 @@ try {
   console.error('[land] failed to build coastline outlines:', err.message || err);
 }
 
+// ---- Geography: nearest town and distance from the coast ----------------
+// Both are worked out here, once per refresh, so the page stays fast.
+//  - Towns: GeoNames places with 10,000+ people (npm "all-the-cities"),
+//    indexed into 2-degree cells.
+//  - Coast: Natural Earth 1:50m coastline (world-atlas land-50m), indexed into
+//    1-degree cells. 1:50m is detailed but still generalized, so distances
+//    within a few km of shore are approximate.
+const GEO_CITY_CELL = 2;
+const GEO_COAST_CELL = 1;
+const MIN_TOWN_POPULATION = 10000;
+let cityIndex = null;
+let coastIndex = null;
+let landPolys50 = [];
+
+function geoToRad(d){ return d * Math.PI / 180; }
+function geoHaversineKm(lat1, lon1, lat2, lon2){
+  const R = 6371;
+  const dLat = geoToRad(lat2 - lat1), dLon = geoToRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(geoToRad(lat1))*Math.cos(geoToRad(lat2))*Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+function geoCompass8(lat1, lon1, lat2, lon2){
+  // direction FROM point 1 TO point 2
+  const y = Math.sin(geoToRad(lon2-lon1)) * Math.cos(geoToRad(lat2));
+  const x = Math.cos(geoToRad(lat1))*Math.sin(geoToRad(lat2)) - Math.sin(geoToRad(lat1))*Math.cos(geoToRad(lat2))*Math.cos(geoToRad(lon2-lon1));
+  const deg = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  return ['N','NE','E','SE','S','SW','W','NW'][Math.round(deg / 45) % 8];
+}
+function wrapCellX(x, cellDeg){
+  const n = 360 / cellDeg;
+  return ((x + n/2) % n + n) % n - n/2;
+}
+// Visits grid cells in growing square rings around (lat, lon) until the best
+// match found so far is closer than anything an outer ring could contain.
+function searchRings(index, cellDeg, lat, lon, maxRings, visit){
+  const cy = Math.floor(lat / cellDeg), cx = Math.floor(lon / cellDeg);
+  const kmPerCell = cellDeg * 111.32 * Math.max(Math.cos(geoToRad(lat)), 0.2);
+  let best = Infinity;
+  for(let r = 0; r <= maxRings; r++){
+    for(let y = cy - r; y <= cy + r; y++){
+      for(let x = cx - r; x <= cx + r; x++){
+        if(Math.max(Math.abs(y - cy), Math.abs(x - cx)) !== r) continue;
+        const cell = index.get(y + ',' + wrapCellX(x, cellDeg));
+        if(cell) best = Math.min(best, visit(cell));
+      }
+    }
+    if(best < Infinity && best <= r * kmPerCell) break;
+  }
+  return best;
+}
+
+function buildCityIndex(cities){
+  const index = new Map();
+  let kept = 0;
+  for(const c of cities){
+    if(!c || !c.loc || !c.loc.coordinates || !(c.population >= MIN_TOWN_POPULATION)) continue;
+    const lon = c.loc.coordinates[0], lat = c.loc.coordinates[1];
+    const k = Math.floor(lat / GEO_CITY_CELL) + ',' + Math.floor(lon / GEO_CITY_CELL);
+    if(!index.has(k)) index.set(k, []);
+    index.get(k).push({ name: c.name, country: c.country, admin: c.adminCode, lat, lon });
+    kept++;
+  }
+  return { index, kept };
+}
+function indexCoastSegments(lines){
+  const index = new Map();
+  let count = 0;
+  for(const line of lines){
+    for(let i = 1; i < line.length; i++){
+      const a = line[i-1], b = line[i];
+      if(Math.abs(a[0] - b[0]) > 180) continue; // skip date-line jumps
+      const seg = [a[0], a[1], b[0], b[1]];
+      const x0 = Math.floor(Math.min(a[0], b[0]) / GEO_COAST_CELL), x1 = Math.floor(Math.max(a[0], b[0]) / GEO_COAST_CELL);
+      const y0 = Math.floor(Math.min(a[1], b[1]) / GEO_COAST_CELL), y1 = Math.floor(Math.max(a[1], b[1]) / GEO_COAST_CELL);
+      for(let x = x0; x <= x1; x++) for(let y = y0; y <= y1; y++){
+        const k = y + ',' + x;
+        if(!index.has(k)) index.set(k, []);
+        index.get(k).push(seg);
+      }
+      count++;
+    }
+  }
+  return { index, count };
+}
+function segmentDistKm(lat, lon, s){
+  const kx = 111.32 * Math.cos(geoToRad(lat)), ky = 110.57;
+  const wrap = d => d > 180 ? d - 360 : (d < -180 ? d + 360 : d);
+  const ax = wrap(s[0] - lon) * kx, ay = (s[1] - lat) * ky;
+  const bx = wrap(s[2] - lon) * kx, by = (s[3] - lat) * ky;
+  const dx = bx - ax, dy = by - ay, len2 = dx*dx + dy*dy;
+  let t = len2 ? -(ax*dx + ay*dy) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  const px = ax + t*dx, py = ay + t*dy;
+  return Math.sqrt(px*px + py*py);
+}
+function nearestCoastKm(lat, lon){
+  if(!coastIndex) return null;
+  const best = searchRings(coastIndex, GEO_COAST_CELL, lat, lon, 12, cell => {
+    let m = Infinity;
+    for(const s of cell){ const d = segmentDistKm(lat, lon, s); if(d < m) m = d; }
+    return m;
+  });
+  return best === Infinity ? null : best;
+}
+function nearestTown(lat, lon){
+  if(!cityIndex) return null;
+  let bestTown = null;
+  const best = searchRings(cityIndex, GEO_CITY_CELL, lat, lon, 15, cell => {
+    let m = Infinity;
+    for(const c of cell){
+      const d = geoHaversineKm(lat, lon, c.lat, c.lon);
+      if(d < m){ m = d; if(!bestTown || d < bestTown.d) bestTown = { c, d }; }
+    }
+    return m;
+  });
+  if(best === Infinity || !bestTown) return null;
+  const c = bestTown.c;
+  return {
+    name: c.name, country: c.country, admin: c.admin,
+    km: Math.round(bestTown.d * 10) / 10,
+    direction: geoCompass8(c.lat, c.lon, lat, lon), // where the sighting is, seen from the town
+  };
+}
+function pointInRingLonLat(lat, lon, ring){
+  let inside = false;
+  for(let i = 0, j = ring.length - 1; i < ring.length; j = i++){
+    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if(((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+function insideMappedLand(lat, lon){
+  for(const p of landPolys50){
+    if(lon < p.bb[0] || lon > p.bb[1] || lat < p.bb[2] || lat > p.bb[3]) continue;
+    if(pointInRingLonLat(lat, lon, p.ring)) return true;
+  }
+  return false;
+}
+
+try {
+  const built = buildCityIndex(require('all-the-cities'));
+  cityIndex = built.index;
+  // free the full 138k-place list; only the 10,000+ towns are kept
+  try { delete require.cache[require.resolve('all-the-cities')]; } catch (e) {}
+  console.log(`[geo] town index: ${built.kept} places with ${MIN_TOWN_POPULATION.toLocaleString()}+ people`);
+} catch (err) {
+  console.error('[geo] town data unavailable (nearest-town lookups disabled):', err.message || err);
+}
+try {
+  const topo50 = require('world-atlas/land-50m.json');
+  const coast = topojson.mesh(topo50, topo50.objects.land);
+  const built = indexCoastSegments(coast.type === 'MultiLineString' ? coast.coordinates : [coast.coordinates]);
+  coastIndex = built.index;
+  const landFc = topojson.feature(topo50, topo50.objects.land);
+  const feats = landFc.type === 'FeatureCollection' ? landFc.features : [landFc];
+  feats.forEach(f => {
+    const g = f.geometry; if(!g) return;
+    const polys = g.type === 'Polygon' ? [g.coordinates] : (g.type === 'MultiPolygon' ? g.coordinates : []);
+    polys.forEach(poly => {
+      const ring = poly[0];
+      let a = 180, b = -180, c = 90, d = -90;
+      for(const pt of ring){ if(pt[0]<a)a=pt[0]; if(pt[0]>b)b=pt[0]; if(pt[1]<c)c=pt[1]; if(pt[1]>d)d=pt[1]; }
+      if(c < -85) return; // skip Antarctica's pole-wrapping ring; flat lon/lat tests misread it
+      landPolys50.push({ ring, bb: [a, b, c, d] });
+    });
+  });
+  console.log(`[geo] coastline index: ${built.count} segments, ${landPolys50.length} land shapes (Natural Earth 1:50m)`);
+} catch (err) {
+  console.error('[geo] 1:50m coastline unavailable (distance-from-coast disabled):', err.message || err);
+}
+
+// Adds nearestTown / coastKm / insideCoastline to each sighting in place.
+function annotateGeography(occurrences){
+  let towns = 0, coasts = 0;
+  occurrences.forEach(o => {
+    if(o.lat == null || o.lon == null) return;
+    o.nearestTown = nearestTown(o.lat, o.lon);
+    if(o.nearestTown) towns++;
+    if(coastIndex){
+      const km = nearestCoastKm(o.lat, o.lon);
+      o.coastKm = km == null ? null : Math.round(km * 10) / 10;
+      o.coastFar = km == null; // nothing within ~12 degrees
+      o.insideCoastline = insideMappedLand(o.lat, o.lon);
+      coasts++;
+    }
+  });
+  console.log(`[geo] annotated ${occurrences.length} sightings (town: ${towns}, coast: ${coasts})`);
+}
+
 // ---- Generic Esri REST FeatureServer fetcher, with pagination ----------
 // Esri services cap how many features one query returns (often 1000-2000).
 // Loops with resultOffset until a page comes back smaller than requested,
@@ -538,7 +727,9 @@ try {
 // ---- refresh cycle ------------------------------------------------------
 async function refreshAll() {
   try {
-    cache.whaleOccurrences.data = await fetchWhaleOccurrences();
+    const fresh = await fetchWhaleOccurrences();
+    try { annotateGeography(fresh); } catch (geoErr) { console.error('[geo] annotate failed:', geoErr.message || geoErr); }
+    cache.whaleOccurrences.data = fresh;
     cache.whaleOccurrences.updatedAt = new Date().toISOString();
     console.log(`[refresh] OBIS occurrences: ${cache.whaleOccurrences.data.length} records`);
   } catch (err) {
