@@ -150,15 +150,29 @@
   .detail-body{padding:14px;}
   .kv{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line-soft); font-size:12.5px; gap:10px;}
   .kv:last-child{border-bottom:none;}
-  .kv .k{color:var(--ink-faint); flex:none;}
+  .kv .k{color:var(--ink-faint); flex:0 1 auto; min-width:0;}
   .kv .v{font-family:'SFMono-Regular',monospace; text-align:right; min-width:0; overflow-wrap:anywhere;}
   .chart-block{padding:14px; border-top:1px solid var(--line);}
   .chart-title{font-size:11.5px; color:var(--ink-dim); margin-bottom:8px; display:flex; justify-content:space-between;}
 
   .trend-panel{grid-column:1 / -1;}
+  .section-title{grid-column:1 / -1; margin:22px 0 -4px; padding:0 0 8px; border-bottom:2px solid var(--teal); font-size:20px; font-weight:700; color:var(--ink); letter-spacing:0.01em; scroll-margin-top:56px; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;}
+  .section-title:first-child{margin-top:0;}
+  .section-title small{font-size:13px; font-weight:400; color:var(--ink-dim);}
+  .to-top{position:fixed; right:18px; bottom:18px; z-index:50; background:var(--teal); color:var(--bg-panel); border:none; border-radius:22px; padding:10px 16px; font-size:13px; font-weight:600; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.35); opacity:0; pointer-events:none; transform:translateY(8px); transition:opacity .2s, transform .2s;}
+  .to-top.show{opacity:1; pointer-events:auto; transform:none;}
+  .to-top:focus-visible{outline:2px solid var(--ink); outline-offset:2px;}
+  .patterns-body{padding:20px; display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:28px;}
+  @media (max-width:800px){.patterns-body{grid-template-columns:minmax(0,1fr);}}
+  .patterns-body .chart-title{font-size:14px; color:var(--ink);}
+  .patterns-body .trend-note{font-size:14px; line-height:1.65;}
+  .patterns-body h3{font-size:15px; margin:0 0 8px; color:var(--ink);}
+  .stat-card{display:flex; align-items:center; gap:16px; background:var(--bg-panel-raised); border:1px solid var(--line); border-radius:6px; padding:14px 16px; margin:18px 0 10px;}
+  .stat-card .stat-num{font-size:34px; font-weight:700; color:var(--coral); font-family:'SFMono-Regular',monospace; line-height:1;}
+  .stat-card .stat-label{font-size:14px; color:var(--ink); line-height:1.4;}
   .trend-body{padding:16px; display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:20px;}
   @media (max-width:700px){.trend-body{grid-template-columns:minmax(0,1fr);}}
-  .trend-note{font-size:12px; color:var(--ink-dim); line-height:1.55;}
+  .trend-note{font-size:13px; color:var(--ink-dim); line-height:1.6;}
   .trend-note b{color:var(--ink);}
   .source-list{list-style:none; margin:10px 0 0; padding:0; font-size:11.5px; color:var(--ink-faint);}
   .source-list li{padding:4px 0; border-top:1px solid var(--line-soft);}
@@ -243,16 +257,17 @@
 </header>
 
 <nav class="top-nav">
-  <a href="#mapPanel">Map</a>
-  <a href="#alertsPanel">Alerts</a>
-  <a href="#iucnPanel">Species</a>
-  <a href="#patternsPanel">Patterns</a>
-  <a href="#drillingPanel">Context</a>
-  <a href="#legend">Legend</a>
-  <a href="#helpPanel" class="top-nav-help">How to Help</a>
+  <a href="#sec-map">Map</a>
+  <a href="#sec-alerts">Alerts</a>
+  <a href="#sec-species">Species</a>
+  <a href="#sec-patterns">Patterns</a>
+  <a href="#sec-context">Context</a>
+  <a href="#sec-legend">Legend</a>
+  <a href="#sec-help" class="top-nav-help">How to Help</a>
 </nav>
 
 <main>
+  <h2 class="section-title" id="sec-map">Live map <small>Current sightings, filters, and details for whatever you click</small></h2>
   <div class="panel" id="whaleListPanel">
     <div class="panel-head">
       <span>Recent occurrences (OBIS)</span>
@@ -305,6 +320,7 @@
     </div>
   </div>
 
+  <h2 class="section-title" id="sec-legend">Legend <small>What each mark and color on the map means</small></h2>
   <div class="panel trend-panel" id="legend">
     <div class="panel-head"><span>Legend — what you're looking at</span></div>
     <div class="legend-grid">
@@ -322,6 +338,7 @@
     </div>
   </div>
 
+  <h2 class="section-title" id="sec-alerts">Alerts <small>Whales in unexpected places</small></h2>
   <div class="panel trend-panel" id="alertsPanel">
     <div class="panel-head"><span>Displacement watch — whales in unexpected places</span><span class="mono" id="alertCount">—</span></div>
     <div id="alertsBody" style="padding:0;">
@@ -336,6 +353,7 @@
     </div>
   </div>
 
+  <h2 class="section-title" id="sec-species">Species <small>Conservation status and population trends</small></h2>
   <div class="panel trend-panel" id="iucnPanel">
     <div class="panel-head"><span>Conservation status &amp; population trend — IUCN Red List</span><span class="mono" id="iucnUpdated">—</span></div>
     <div id="iucnBody" style="padding:16px;">
@@ -359,22 +377,26 @@
     </div>
   </div>
 
+  <h2 class="section-title" id="sec-patterns">Patterns <small>Looking for the why</small></h2>
   <div class="panel trend-panel" id="patternsPanel">
     <div class="panel-head"><span>Looking for a "why" — temperature &amp; drilling-zone patterns</span></div>
-    <div class="trend-body">
+    <div class="patterns-body">
       <div>
-        <div class="chart-title"><span>Sea temperature on sighting date: rare-region vs. typical-region sightings, by region</span></div>
-        <div class="svg-scroll"><svg id="sstCompareSvg" viewBox="0 0 460 220" preserveAspectRatio="xMidYMid meet" style="width:100%; min-width:380px; height:220px; display:block;"></svg></div>
+        <div class="chart-title"><span>Average sea temperature: rare-region vs. typical sightings, by ocean region</span></div>
+        <div class="svg-scroll"><svg id="sstCompareSvg" viewBox="0 0 460 240" preserveAspectRatio="xMidYMid meet" style="width:100%; min-width:380px; height:auto; display:block;"></svg></div>
         <div id="sstCompareNote" class="trend-note" style="margin-top:8px;"></div>
       </div>
       <div>
-        <p class="trend-note">Temperature is now matched to each sighting's own month (a monthly snapshot nearest that date, not the exact day) rather than today's conditions — a real improvement, though still not a day-exact match. This compares water temperature at rare-region sightings with typical ones. Treat it as exploratory only: the rare regions in this dataset are currently mostly in the Southern Hemisphere, so differences here mostly reflect geography rather than a cause for any individual sighting.</p>
-        <div class="kv" style="margin-top:10px;"><span class="k">Sightings inside an active Gulf of Mexico lease area</span><span class="v" id="drillingProxCount">—</span></div>
-        <p class="trend-note" style="margin-top:8px;">This is real BOEM lease-boundary data, checked point-by-point against each sighting — but it only covers the Gulf of Mexico. A sighting elsewhere in the world will never show as "inside a lease" here, not because none exists, but because this feed doesn't cover that region.</p>
+        <h3>How to read this</h3>
+        <p class="trend-note">Each sighting is matched to the sea temperature for its own month (the nearest monthly snapshot, not the exact day). The chart compares sightings in regions where a species is rarely recorded with sightings in its usual regions.</p>
+        <p class="trend-note" style="margin-top:10px;">Treat it as exploratory. Most rare-region sightings in this data are in the Southern Hemisphere, so differences mostly reflect geography, not the cause of any one sighting.</p>
+        <div class="stat-card"><span class="stat-num" id="drillingProxCount">—</span><span class="stat-label">sightings inside an active Gulf of Mexico oil and gas lease area</span></div>
+        <p class="trend-note">Real BOEM lease boundaries, checked against every sighting. The feed only covers the Gulf of Mexico, so a sighting anywhere else will never show as "inside a lease."</p>
       </div>
     </div>
   </div>
 
+  <h2 class="section-title" id="sec-context">Context <small>Drilling, whaling, protection changes, and captivity</small></h2>
   <div class="panel trend-panel" id="drillingPanel">
     <div class="panel-head">
       <span>Ocean drilling &amp; seismic survey exposure</span>
@@ -488,6 +510,7 @@
     </div>
   </div>
 
+  <h2 class="section-title" id="sec-help">How to Help <small>Where to start</small></h2>
   <div class="panel trend-panel" id="helpPanel">
     <div class="panel-head"><span>How to help — where to start</span></div>
     <div class="drilling-body">
@@ -514,6 +537,7 @@
     </div>
   </div>
 </main>
+<button class="to-top" id="toTop" type="button" aria-label="Back to top">↑ Top</button>
 
 <footer>
   Occurrence data (OBIS) and ocean temperature (NOAA CoastWatch) are live and refresh automatically. Continuous individual-whale tag tracks require an Argos data-sharing agreement — in progress, not yet connected. Imagery requires a separate Maxar (or equivalent) license.
@@ -674,8 +698,27 @@ function renderIUCNPanel(){
 function regionFor(lat, lon){
   if(lat < -60) return 'Southern Ocean';
   if(lat > 66.5) return 'Arctic Ocean';
-  if(lon >= -100 && lon < 20) return lat >= 0 ? 'North Atlantic' : 'South Atlantic';
-  if(lon >= 20 && lon < 147) return 'Indian Ocean';
+  // Mediterranean & Black Sea
+  if(lat >= 30 && lat <= 46.5 && lon >= -6 && lon <= 42 && !(lat > 42.5 && lon < 3)) return 'Mediterranean';
+  // North Sea / Baltic / Norwegian coast sit east of 20°E in places
+  if(lat > 47 && lon >= -100 && lon < 60) return 'North Atlantic';
+  // The Americas: split Pacific and Atlantic along the coastline, roughly.
+  if(lon >= -120 && lon < -60){
+    let pacific;
+    if(lat < 0) pacific = lon < -69;                         // west coast of South America
+    else if(lat < 9) pacific = lon < -78;                    // Panama / Colombia
+    else if(lat <= 32) pacific = lon < -84 - (lat - 9) * 1.2; // Central America & Mexico
+    else pacific = lon < -100;                               // US / Canada
+    if(pacific) return lat >= 0 ? 'North Pacific' : 'South Pacific';
+    return lat >= 0 ? 'North Atlantic' : 'South Atlantic';
+  }
+  if(lon >= -60 && lon < 20) return lat >= 0 ? 'North Atlantic' : 'South Atlantic';
+  if(lon >= 20 && lon < 147){
+    // East and Southeast Asia (China seas, Japan, Philippines) are Pacific.
+    if(lon >= 100 && lat >= 0) return 'North Pacific';
+    if(lon >= 120 && lat > -12) return 'South Pacific';
+    return 'Indian Ocean';
+  }
   return lat >= 0 ? 'North Pacific' : 'South Pacific';
 }
 
@@ -910,7 +953,7 @@ let populationStatusConfigured = false;
 let populationStatusCitation = '';
 
 const MAP_VIEWS = {
-  world:   {latMin:-70, latMax:80, lonMin:-180, lonMax:180, latStep:20, lonStep:30, label:'worldwide'},
+  world:   {latMin:-70, latMax:84, lonMin:-180, lonMax:180, latStep:20, lonStep:30, label:'worldwide'},
   epac:    {latMin:0,   latMax:56, lonMin:-160, lonMax:-78, latStep:10, lonStep:10, label:'Eastern North Pacific'},
 };
 let mapView = 'world';
@@ -1047,13 +1090,21 @@ function ringPaths(ring){
     pts.push([lon, pt[1]]);
     prev = lon;
   }
+  // A ring that wraps all the way around the globe (Eurasia's Arctic coast,
+  // Antarctica) ends 360° away from where it started. Closing it with a
+  // straight line draws a stripe across the whole map, so close it over the
+  // nearest pole instead.
+  const net = pts[pts.length-1][0] - pts[0][0];
+  if(Math.abs(net) > 180){
+    const meanLat = pts.reduce((a,q)=>a+q[1],0) / pts.length;
+    const pole = meanLat >= 0 ? 90 : -90;
+    pts.push([pts[pts.length-1][0], pole], [pts[0][0], pole]);
+  }
   let min = Infinity, max = -Infinity;
   for(const q of pts){ if(q[0]<min) min=q[0]; if(q[0]>max) max=q[0]; }
-  const shifts = [0];
-  if(max > 180) shifts.push(-360);
-  if(min < -180) shifts.push(360);
+  const shifts = [-720,-360,0,360,720].filter(sh => min+sh < 180 && max+sh > -180);
   return shifts.map(sh => pts.map((q,i)=>{
-    const [x,y] = project(q[1], q[0]+sh);
+    const [x,y] = project(Math.max(-89.9, Math.min(89.9, q[1])), q[0]+sh);
     return (i===0?'M':'L') + x.toFixed(1) + ',' + y.toFixed(1);
   }).join(' ') + ' Z');
 }
@@ -1453,13 +1504,14 @@ function drawSSTComparison(){
       anomalyCount: g.anomaly.length,
     }));
 
+  svg.style.display = rows.length ? 'block' : 'none';
   if(!rows.length){
-    note.textContent = 'Not enough rare-region sightings with temperature data to compare yet.';
+    note.textContent = allOccurrences.length ? 'Not enough rare-region sightings with temperature data to compare yet.' : 'Waiting for sighting data to load…';
     return;
   }
   note.textContent = '';
 
-  const W=460,H=220,padL=34,padR=10,padT=16,padB=34;
+  const W=460,H=240,padL=34,padR=10,padT=22,padB=34;
   const allVals = rows.flatMap(r=>[r.typicalAvg, r.anomalyAvg]);
   const minV = Math.floor(Math.min(...allVals) - 1);
   const maxV = Math.ceil(Math.max(...allVals) + 1);
@@ -1691,6 +1743,10 @@ document.getElementById('toggleTracks').addEventListener('change', async (e)=>{
   if(!tracksVisible && selectedTrackId) selectedTrackId = null;
   render();
 });
+
+const toTopBtn = document.getElementById('toTop');
+toTopBtn.addEventListener('click', ()=> window.scrollTo({top:0, behavior:'smooth'}));
+window.addEventListener('scroll', ()=> toTopBtn.classList.toggle('show', window.scrollY > 600), {passive:true});
 
 loadData();
 setInterval(loadData, 5 * 60 * 1000); // refresh view every 5 min
