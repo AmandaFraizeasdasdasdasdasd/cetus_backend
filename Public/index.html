@@ -342,7 +342,7 @@
   </div>
 
   <div class="panel trend-panel" id="briefingPanel">
-    <div class="panel-head"><span>What you're seeing — a plain-language read of the map</span><span class="mono" id="briefingScope">—</span></div>
+    <div class="panel-head"><span>What you're seeing</span><span class="mono" id="briefingScope">—</span></div>
     <div class="briefing-body" id="briefingBody"><div class="loading">Waiting for data…</div></div>
   </div>
 
@@ -1719,49 +1719,59 @@ function renderMapInfo(){
 // matches, it says so instead of guessing.
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const HABITATS = [
-  // [species, latMin, latMax, lonMin, lonMax, months (1-12) or null, explanation]
-  ['Megaptera novaeangliae', 40, 46, -71, -64, [4,5,6,7,8,9,10,11], 'Gulf of Maine and Stellwagen Bank: a summer feeding ground, where humpbacks fatten on sand lance and herring.'],
-  ['Megaptera novaeangliae', 17, 23, -162, -154, [12,1,2,3,4], 'Hawaii: the main North Pacific winter breeding and calving ground. Humpbacks barely eat here; they live off fat stored up north.'],
-  ['Megaptera novaeangliae', 16, 23, -73, -60, [12,1,2,3,4], 'Caribbean banks (Silver Bank, Dominican Republic): the North Atlantic winter breeding and calving ground.'],
-  ['Megaptera novaeangliae', 30, 49, -128, -116, [4,5,6,7,8,9,10,11], 'California Current: spring-to-fall feeding on krill and anchovy, driven by coastal upwelling of cold, nutrient-rich water.'],
-  ['Megaptera novaeangliae', 54, 61, -160, -130, [5,6,7,8,9], 'Southeast Alaska and the Gulf of Alaska: summer feeding grounds; some humpbacks here cooperate to "bubble-net" feed on herring.'],
-  ['Megaptera novaeangliae', -40, -15, 145, 157, [5,6,7,8,9,10,11], 'East coast of Australia: a migration corridor between Antarctic feeding grounds and Great Barrier Reef breeding waters, June to November.'],
-  ['Megaptera novaeangliae', -36, -15, 108, 122, [5,6,7,8,9,10,11], 'Western Australia: a migration route to and from breeding waters off the Kimberley coast.'],
-  ['Megaptera novaeangliae', -80, -55, -180, 180, [11,12,1,2,3,4], 'Antarctic waters: summer feeding on Antarctic krill.'],
-  ['Megaptera novaeangliae', 62, 72, 5, 32, [10,11,12,1,2], 'Northern Norway: winter feeding on herring that gather in the fjords.'],
-  ['Megaptera novaeangliae', 62, 67, -25, -12, null, 'Iceland: a feeding ground on capelin and krill, mostly in summer.'],
-  ['Balaenoptera musculus', 30, 40, -125, -116, [6,7,8,9,10,11], 'California Current: blue whales gather in summer and fall to feed on dense krill swarms fed by upwelling.'],
-  ['Balaenoptera musculus', 4, 13, -97, -84, [11,12,1,2,3,4,5,6], 'Costa Rica Dome: an upwelling "dome" of cold water that stays productive in winter; blue whales feed and likely breed here.'],
-  ['Balaenoptera musculus', 3, 10, 78, 83, null, 'Off Sri Lanka: a resident blue whale population that feeds there year-round.'],
-  ['Balaenoptera musculus', -48, -37, 140, 152, [11,12,1,2,3,4,5], 'Bonney Upwelling, southern Australia: summer feeding on krill when cold water rises along the shelf.'],
-  ['Eschrichtius robustus', 24, 30, -116, -111, [12,1,2,3,4], 'Baja California lagoons: gray whale winter calving and breeding grounds.'],
-  ['Eschrichtius robustus', 30, 50, -127, -117, [12,1,2,3,4,5], 'West coast of the US: the gray whale migration corridor between Mexico and the Arctic, one of the longest migrations of any mammal.'],
-  ['Eschrichtius robustus', 55, 75, -180, -150, [5,6,7,8,9,10,11], 'Bering and Chukchi Seas: summer feeding grounds, where gray whales suck up small crustaceans from the sea floor.'],
-  ['Eschrichtius robustus', 47, 52, -128, -122, null, 'Pacific Northwest: a small group of gray whales stays here to feed instead of going to the Arctic.'],
-  ['Orcinus orca', 62, 72, 5, 32, [10,11,12,1,2,3], 'Northern Norway: orcas follow the herring into the fjords in winter.'],
-  ['Orcinus orca', 46, 52, -128, -121, null, 'Salish Sea and Pacific Northwest: home to fish-eating resident orcas, which depend on Chinook salmon, and mammal-eating Bigg\u2019s orcas.'],
-  ['Orcinus orca', 62, 67, -25, -12, null, 'Iceland: orcas follow herring and mackerel.'],
-  ['Orcinus orca', 35, 37.5, -9, -5, [4,5,6,7,8,9,10], 'Strait of Gibraltar: a small Iberian orca population that hunts bluefin tuna; the group known for interacting with sailboats.'],
-  ['Eubalaena glacialis', 40, 45, -71, -65, [1,2,3,4,5], 'Cape Cod Bay and the Gulf of Maine: late-winter and spring feeding on dense patches of tiny copepods.'],
-  ['Eubalaena glacialis', 28, 33, -82, -78, [11,12,1,2,3,4], 'Off Georgia and northeast Florida: the only known calving ground for North Atlantic right whales.'],
-  ['Eubalaena glacialis', 45, 50, -66, -60, [6,7,8,9,10], 'Gulf of St. Lawrence: a summer feeding area that right whales shifted to around 2015 as their prey moved.'],
-  ['Physeter macrocephalus', 36, 40, -32, -24, null, 'Azores: deep water close to the islands, where sperm whales dive for squid; a well-studied population.'],
-  ['Physeter macrocephalus', 68, 70.5, 13, 17, null, 'Andenes, Norway: a deep canyon close to shore where male sperm whales feed.'],
-  ['Physeter macrocephalus', -44, -42, 173, 174.5, null, 'Kaikoura, New Zealand: a deep undersea canyon close to shore draws feeding sperm whales year-round.'],
-  ['Balaenoptera physalus', 41, 45, 6, 11, [5,6,7,8,9,10], 'Pelagos Sanctuary, Ligurian Sea: summer feeding on krill; one of the Mediterranean\u2019s few whale hotspots.'],
-  ['Balaenoptera physalus', 45, 52, -70, -55, [6,7,8,9,10], 'Gulf of St. Lawrence: summer feeding on krill and small fish.'],
-  ['Balaenoptera physalus', 32, 35, -121.5, -117, null, 'Southern California Bight: fin whales are found here year-round, feeding on krill over the deep basins and banks offshore.'],
-  ['Balaenoptera physalus', 40, 46, -71, -64, [4,5,6,7,8,9,10], 'Gulf of Maine: a summer feeding ground shared with humpbacks.'],
+  // [species, latMin, latMax, lonMin, lonMax, months (1-12) or null, plain-language reason]
+  ['Megaptera novaeangliae', 40, 46, -71, -64, [4,5,6,7,8,9,10,11], 'They come here in summer to eat small fish.'],
+  ['Megaptera novaeangliae', 17, 23, -162, -154, [12,1,2,3,4], 'They come to Hawaii in winter to have babies. They barely eat here.'],
+  ['Megaptera novaeangliae', 16, 23, -73, -60, [12,1,2,3,4], 'They come to the Caribbean in winter to have babies.'],
+  ['Megaptera novaeangliae', 30, 49, -128, -116, [4,5,6,7,8,9,10,11], 'Cold water rises along this coast and brings lots of food. They come to eat from spring to fall.'],
+  ['Megaptera novaeangliae', 54, 61, -160, -130, [5,6,7,8,9], 'They come to Alaska in summer to eat fish.'],
+  ['Megaptera novaeangliae', -40, -15, 145, 157, [5,6,7,8,9,10,11], 'This is their highway between Antarctica (where they eat) and the Great Barrier Reef (where they have babies).'],
+  ['Megaptera novaeangliae', -36, -15, 108, 122, [5,6,7,8,9,10,11], 'They pass along this coast on the way to and from where they have babies.'],
+  ['Megaptera novaeangliae', -80, -55, -180, 180, [11,12,1,2,3,4], 'They come to Antarctica in summer to eat krill.'],
+  ['Megaptera novaeangliae', 62, 72, 5, 32, [10,11,12,1,2], 'They follow herring into the Norwegian fjords in winter.'],
+  ['Megaptera novaeangliae', 62, 67, -25, -12, null, 'They come to Iceland to eat, mostly in summer.'],
+  ['Balaenoptera musculus', 30, 40, -125, -116, [6,7,8,9,10,11], 'Cold water rises here in summer and fall and brings huge swarms of krill, their only food.'],
+  ['Balaenoptera musculus', 4, 13, -97, -84, [11,12,1,2,3,4,5,6], 'A patch of cold water off Costa Rica stays full of krill all winter. They eat here and likely have babies here.'],
+  ['Balaenoptera musculus', 3, 10, 78, 83, null, 'A group of blue whales lives off Sri Lanka all year.'],
+  ['Balaenoptera musculus', -48, -37, 140, 152, [11,12,1,2,3,4,5], 'Cold water rises off southern Australia in summer and brings krill.'],
+  ['Eschrichtius robustus', 24, 30, -116, -111, [12,1,2,3,4], 'They come to these calm lagoons in Mexico in winter to have babies.'],
+  ['Eschrichtius robustus', 30, 50, -127, -117, [12,1,2,3,4,5], 'They swim past here on their trip between Mexico and the Arctic, one of the longest trips any animal makes.'],
+  ['Eschrichtius robustus', 55, 75, -180, -150, [5,6,7,8,9,10,11], 'They come to the Arctic in summer to eat from the sea floor.'],
+  ['Eschrichtius robustus', 47, 52, -128, -122, null, 'A small group stays here to eat instead of going all the way to the Arctic.'],
+  ['Orcinus orca', 62, 72, 5, 32, [10,11,12,1,2,3], 'They follow herring into the Norwegian fjords in winter.'],
+  ['Orcinus orca', 46, 52, -128, -121, null, 'Two kinds of orcas live here: one eats salmon, the other eats seals.'],
+  ['Orcinus orca', 62, 67, -25, -12, null, 'They follow herring and mackerel around Iceland.'],
+  ['Orcinus orca', 35, 37.5, -9, -5, [4,5,6,7,8,9,10], 'A small group hunts tuna here. This is the group known for bumping sailboats.'],
+  ['Eubalaena glacialis', 40, 45, -71, -65, [1,2,3,4,5], 'They come here in late winter and spring to eat tiny shrimp-like animals.'],
+  ['Eubalaena glacialis', 28, 33, -82, -78, [11,12,1,2,3,4], 'This is the only place they are known to have babies, in winter.'],
+  ['Eubalaena glacialis', 45, 50, -66, -60, [6,7,8,9,10], 'They started coming here in summer around 2015, after their food moved north.'],
+  ['Physeter macrocephalus', 36, 40, -32, -24, null, 'The water gets very deep right next to these islands, and they dive deep to hunt squid.'],
+  ['Physeter macrocephalus', 68, 70.5, 13, 17, null, 'A deep underwater canyon comes close to shore here, and they dive into it to hunt squid.'],
+  ['Physeter macrocephalus', -44, -42, 173, 174.5, null, 'A deep underwater canyon comes close to shore here, and they dive into it to hunt squid.'],
+  ['Balaenoptera physalus', 32, 35, -121.5, -117, null, 'Fin whales live off Southern California all year, eating krill in the deep water offshore.'],
+  ['Balaenoptera physalus', 41, 45, 6, 11, [5,6,7,8,9,10], 'They come to this part of the Mediterranean in summer to eat krill.'],
+  ['Balaenoptera physalus', 45, 52, -70, -55, [6,7,8,9,10], 'They come here in summer to eat krill and small fish.'],
+  ['Balaenoptera physalus', 40, 46, -71, -64, [4,5,6,7,8,9,10], 'They come here in summer to eat, along with humpbacks.'],
 ];
 const SPECIES_GENERAL = {
-  'Physeter macrocephalus': 'Sperm whales favor deep water near the continental shelf edge and canyons, where they dive for squid.',
-  'Balaenoptera physalus': 'Fin whales feed on krill and schooling fish, usually over the outer shelf and slope.',
-  'Balaenoptera musculus': 'Blue whales follow krill, which concentrate where cold, nutrient-rich water rises to the surface.',
-  'Megaptera novaeangliae': 'Humpbacks split the year between cold feeding grounds and warm breeding grounds.',
-  'Orcinus orca': 'Orcas go where their prey is; different populations specialize in fish, seals or other whales.',
-  'Eschrichtius robustus': 'Gray whales stay close to shore, feeding on the sea floor in shallow water.',
-  'Eubalaena glacialis': 'North Atlantic right whales feed on tiny copepods and stay close to the US and Canadian coast.',
+  'Physeter macrocephalus': 'Sperm whales like very deep water, where they dive to hunt squid.',
+  'Balaenoptera physalus': 'Fin whales go where krill and small fish are.',
+  'Balaenoptera musculus': 'Blue whales go where krill is, usually where cold water rises to the surface.',
+  'Megaptera novaeangliae': 'Humpbacks eat in cold water and have babies in warm water.',
+  'Orcinus orca': 'Orcas go where their food is: fish, seals or other whales, depending on the group.',
+  'Eschrichtius robustus': 'Gray whales stay close to shore and eat from the sea floor.',
+  'Eubalaena glacialis': 'Right whales stay close to the US and Canadian coast, eating tiny shrimp-like animals.',
 };
+const COMMON_FALLBACK = {
+  'Physeter macrocephalus':'Sperm whale', 'Balaenoptera physalus':'Fin whale', 'Balaenoptera musculus':'Blue whale',
+  'Megaptera novaeangliae':'Humpback whale', 'Orcinus orca':'Orca', 'Eschrichtius robustus':'Gray whale',
+  'Eubalaena glacialis':'North Atlantic right whale',
+};
+function plainName(sp, plural){
+  const c = commonNameFor(sp) || COMMON_FALLBACK[sp] || sp;
+  if(!plural) return c;
+  return /orca$/i.test(c) ? c + 's' : c.replace(/whale$/i, 'whales');
+}
 function monthsOf(list){
   const c = new Array(12).fill(0);
   list.forEach(o=>{ const d = new Date(o.date); if(!isNaN(d)) c[d.getUTCMonth()]++; });
@@ -1819,64 +1829,44 @@ function renderBriefing(){
     scope.textContent = '—';
     return;
   }
-  const speciesSet = [...new Set(list.map(o=>o.species))];
   const filtered = list.length < allOccurrences.length;
   scope.textContent = filtered ? 'current filters' : 'all sightings';
   const clusters = computeBriefingClusters(list);
-  const inTop = clusters.reduce((a,c)=>a+c.items.length,0);
-  const pctTop = Math.round(100*inTop/list.length);
-  const regionCounts = {};
-  list.forEach(o=>{ const r = o._region || regionFor(o.lat,o.lon); regionCounts[r]=(regionCounts[r]||0)+1; });
-  const topRegions = Object.entries(regionCounts).sort((a,b)=>b[1]-a[1]).slice(0,2);
-  const spLabel = speciesSet.length === 1 ? esc(speciesLabel(speciesSet[0])) : `${speciesSet.length} species`;
-  const lead = `Showing <b>${list.length.toLocaleString()}</b> sightings of ${spLabel} from the past year. `+
-    `Most are in the <b>${esc(topRegions[0][0])}</b>${topRegions[1] ? ` and <b>${esc(topRegions[1][0])}</b>` : ''}, and `+
-    `${pctTop}% fall in just ${clusters.length} area${clusters.length>1?'s':''}, shown below.`;
+
+  const lead = `The map shows <b>${list.length.toLocaleString()}</b> whale sightings from the past year. These are the busiest spots and why the whales are probably there.`;
 
   const cards = clusters.map(c=>{
-    const where = c.town ? `near ${esc(c.town)}` : esc(c.region);
-    const mix = c.topSpecies.slice(0,2).map(([sp,n])=>`${n} ${esc(commonNameFor(sp) || sp)}`).join(', ');
-    const meta = [ `${c.items.length} sightings`, c.peaks.length ? `most in ${monthLabel(c.peaks)}` : null,
-      c.coast != null ? `typically ${c.coast < 1 ? 'within 1 km of shore' : 'about ' + fmtKm(c.coast) + ' offshore'}` : null,
-      c.sst != null ? fmtTemp(c.sst) : null ].filter(Boolean).join(' · ');
+    const where = c.town ? `near ${esc(c.town)}` : `in the ${esc(c.region)}`;
+    const when = c.peaks.length ? `Seen most in ${monthLabel(c.peaks)}` : '';
     let why;
     if(c.hab){
-      why = `<span class="why-tag">Likely why</span>${esc(c.hab[6])}`;
-      if(c.seasonFit === 'fits') why += ' The months of these sightings fit that season.';
-      if(c.seasonFit === 'outside') why += ' Most of these sightings are outside that usual season, which is worth a closer look.';
-    } else if(SPECIES_GENERAL[c.lead]){
-      why = `<span class="why-tag">Possible why</span>${esc(SPECIES_GENERAL[c.lead])} This area isn't on our list of known hotspots, so it may also just be where observers were.`;
+      why = esc(c.hab[6]);
+      if(c.seasonFit === 'outside') why += ' <b>But most of these sightings are outside the usual season.</b>';
     } else {
-      why = `<span class="why-tag">Possible why</span>Not on our list of known hotspots; the cluster may mostly reflect where observers were.`;
+      why = esc(SPECIES_GENERAL[c.lead] || '') + ' This spot may also just have a lot of whale watchers.';
     }
-    const overlaps = [ c.inMPA ? `${c.inMPA} in protected areas` : null, c.inMil ? `${c.inMil} in military training areas` : null,
-      c.inLease ? `${c.inLease} in oil and gas leases` : null, c.inSMA ? `${c.inSMA} in right whale speed zones` : null,
-      c.rare ? `${c.rare} flagged rare-region` : null ].filter(Boolean);
-    return `<div class="brief-card" data-lat="${c.lat}" data-lon="${c.lon}" data-id="${esc(c.items[0].id)}">
-      <h4>${esc(speciesLabel(c.lead))} ${where}</h4>
-      <div class="brief-meta">${esc(mix)} · ${esc(meta)}</div>
-      <p class="why">${why}</p>
-      ${overlaps.length ? `<p style="margin-top:8px;">${esc(overlaps.join(' · '))}</p>` : ''}
+    const extras = [ c.inMil ? `${c.inMil} in Navy training areas` : null, c.inMPA ? `${c.inMPA} in protected areas` : null,
+      c.inLease ? `${c.inLease} in oil and gas leases` : null ].filter(Boolean);
+    return `<div class="brief-card" data-id="${esc(c.items[0].id)}">
+      <h4>${esc(plainName(c.lead, true))} ${where}</h4>
+      <div class="brief-meta">${c.items.length} sightings${when ? ' · ' + when : ''}</div>
+      <p class="why"><span class="why-tag">Why here</span>${why}</p>
+      ${extras.length ? `<p style="margin-top:8px;">${esc(extras.join(' · '))}</p>` : ''}
     </div>`;
   }).join('');
 
-  const share = (n)=> `${n.toLocaleString()} (${Math.round(100*n/list.length)}%)`;
-  const nMPA = list.filter(o=>o._inMPA).length, nMil = list.filter(o=>o._milArea).length;
-  const nLease = list.filter(o=>o._inLeaseArea).length, nRare = list.filter(o=>o.anomaly).length;
-  const inland = list.filter(o=>o.insideCoastline).length;
-  const pressure = [
-    mpaPolygons.length ? `<li><b>Protected areas:</b> ${share(nMPA)} of these sightings are inside a US Marine Protected Area.</li>` : '',
-    militaryPolygons.length ? `<li><b>Military training areas:</b> ${share(nMil)} are inside a US Operating Area where sonar and weapons tests take place.</li>` : '',
-    leasePolygons.length ? `<li><b>Oil and gas:</b> ${share(nLease)} are inside an active Gulf of Mexico lease.</li>` : '',
-    inland ? `<li><b>Inside the coastline:</b> ${inland} sighting${inland>1?'s are':' is'} inside the mapped coastline, mostly bays such as Monterey Bay or San Francisco Bay, which whales use normally. A whale far up a river, as in the Sacramento cases, is the kind of thing that shows up here first.</li>` : '',
-    nRare ? `<li><b>Unusual places:</b> ${nRare} sighting${nRare>1?'s are':' is'} in a region rarely recorded for that species. Low confidence; see Alerts.</li>` : '',
+  const nMil = list.filter(o=>o._milArea).length, nMPA = list.filter(o=>o._inMPA).length, nRare = list.filter(o=>o.anomaly).length;
+  const notes = [
+    mpaPolygons.length ? `<li><b>${nMPA.toLocaleString()}</b> sightings are in protected ocean areas.</li>` : '',
+    militaryPolygons.length ? `<li><b>${nMil.toLocaleString()}</b> are in areas where the Navy trains and tests weapons and sonar.</li>` : '',
+    nRare ? `<li><b>${nRare.toLocaleString()}</b> are in places that species is rarely seen. That's usually just thin data, but check Alerts.</li>` : '',
   ].join('');
 
   body.innerHTML = `
     <p class="briefing-lead">${lead}</p>
     <div class="briefing-grid">${cards}</div>
-    <ul class="brief-list">${pressure}</ul>
-    <p class="brief-caveat">How to read this: sightings show where people were looking (research surveys, whale-watch boats, citizen scientists), not every place whales are. Busy coasts with many observers will always look crowded. The "likely why" notes come from a short list of well-documented whale habitats; overlap with a protected, military or drilling area is shown as context, not as a cause. Click a card to jump to that area on the map.</p>`;
+    ${notes ? `<ul class="brief-list">${notes}</ul>` : ''}
+    <p class="brief-caveat">Keep in mind: dots show where people saw whales, not everywhere whales are. Places with lots of boats and whale watchers will always look busier. Click a card to see it on the map.</p>`;
   body.querySelectorAll('.brief-card').forEach(card=> card.addEventListener('click', ()=>{ selectOccurrence(card.dataset.id); document.getElementById('mapPanel').scrollIntoView({behavior:'smooth', block:'start'}); }));
 }
 
