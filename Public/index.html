@@ -23,6 +23,7 @@
     --sma:#5B8DEF;
     --mpa:#4FA36A;
     --track:#B49BE8;
+    --military:#E06AA8;
     --paddd:#C9584F;
   }
   html,body{height:100%;}
@@ -187,6 +188,7 @@
   .sma-zone.hidden{display:none;}
   .mpa-zone{fill:var(--mpa); opacity:0.18; stroke:var(--mpa); stroke-width:0.6;}
   .mpa-zone.hidden{display:none;}
+  .mil-zone{fill:var(--military); opacity:0.16; stroke:var(--military); stroke-width:0.7; stroke-dasharray:4 2;}
   .paddd-zone{fill:var(--paddd); opacity:0.22; stroke:var(--paddd); stroke-width:0.8; stroke-dasharray:3 2;}
   .paddd-zone.hidden{display:none;}
   .view-btns{display:flex; gap:4px; width:100%; order:-1; margin-bottom:2px;}
@@ -238,6 +240,7 @@
   .sw-lease::after{content:''; position:absolute; inset:2px; background:var(--coral); opacity:0.5; border:1px solid var(--coral);}
   .sw-sma::after{content:''; position:absolute; inset:2px; background:var(--sma); opacity:0.5; border:1px solid var(--sma);}
   .sw-track::after{content:''; position:absolute; left:0; right:0; top:7px; height:2px; background:var(--track);}
+  .sw-mil::after{content:''; position:absolute; inset:2px; background:var(--military); opacity:0.45; border:1px dashed var(--military);}
   .sw-mpa::after{content:''; position:absolute; inset:2px; background:var(--mpa); opacity:0.5; border:1px solid var(--mpa);}
   .sw-paddd::after{content:''; position:absolute; inset:2px; background:var(--paddd); opacity:0.4; border:1px dashed var(--paddd);}
   @keyframes lgpulse{0%{transform:scale(0.45); opacity:0.9;} 100%{transform:scale(1.15); opacity:0;}}
@@ -305,6 +308,7 @@
       <label class="layer-toggle"><input type="checkbox" id="toggleMPA"><span>MPA boundaries</span></label>
       <label class="layer-toggle"><input type="checkbox" id="togglePADDD"><span>Documented downgrades</span></label>
       <span class="view-btns"><button class="view-btn on" data-view="world">World</button><button class="view-btn" data-view="epac">Zoom: E. Pacific</button></span>
+      <label class="layer-toggle"><input type="checkbox" id="toggleMilitary"><span>Military training areas</span></label>
       <label class="layer-toggle"><input type="checkbox" id="toggleTracks"><span>Historical tracks (blue whales, 1993–2008)</span></label>
     </div>
     <div class="svg-scroll">
@@ -336,6 +340,7 @@
       <div class="legend-item"><span class="sw sw-sma"></span><span><b>Blue shading</b> — right whale vessel speed-restriction zones, US Atlantic (NOAA).</span></div>
       <div class="legend-item"><span class="sw sw-mpa"></span><span><b>Green shading</b> — US Marine Protected Areas (NOAA).</span></div>
       <div class="legend-item"><span class="sw sw-paddd"></span><span><b>Red dashed shading</b> — zones where protection was loosened: Australia's 2018 marine park rezoning (PADDDtracker).</span></div>
+      <div class="legend-item"><span class="sw sw-mil"></span><span><b>Pink dashed shading</b> — military Operating Areas where training and weapons tests, including sonar and explosives, are routinely held: US waters, Hawaii and Guam (NOAA/MarineCadastre). Boundaries only; exercise dates are not public in real time.</span></div>
       <div class="legend-item"><span class="sw sw-track"></span><span><b>Purple lines</b> — historical satellite tracks: 143 blue whales tagged off California, Mexico and Costa Rica, 1993–2008 (Mate et al. 2019, Movebank). Each line is one whale's route. These are past tracks, not live positions. Click a line for details.</span></div>
     </div>
   </div>
@@ -394,6 +399,8 @@
         <p class="trend-note" style="margin-top:10px;">Treat it as exploratory. Most rare-region sightings in this data are in the Southern Hemisphere, so differences mostly reflect geography, not the cause of any one sighting.</p>
         <div class="stat-card"><span class="stat-num" id="drillingProxCount">—</span><span class="stat-label">sightings inside an active Gulf of Mexico oil and gas lease area</span></div>
         <p class="trend-note">Real BOEM lease boundaries, checked against every sighting. The feed only covers the Gulf of Mexico, so a sighting anywhere else will never show as "inside a lease."</p>
+        <div class="stat-card"><span class="stat-num" id="militaryProxCount" style="color:var(--military);">—</span><span class="stat-label">sightings inside a US military operating area, where sonar and weapons testing take place</span></div>
+        <p class="trend-note">Covers US waters, Hawaii and Guam. Being inside an area doesn't mean an exercise was happening at the time; schedules aren't published as data.</p>
       </div>
     </div>
   </div>
@@ -421,6 +428,32 @@
           <li>Airgun behavioral-response findings — BRAHSS / Journal of Experimental Biology</li>
           <li>Species vulnerability &amp; stranding risk — Marine Conservation Research report for Greenpeace Nordic</li>
           <li>Lease boundaries — BOEM, live pipeline, Gulf of Mexico only</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel trend-panel" id="militaryPanel">
+    <div class="panel-head"><span>Military sonar &amp; weapons testing at sea</span></div>
+    <div class="drilling-body">
+      <div class="drilling-col">
+        <h3>How it reaches whales</h3>
+        <p class="trend-note">Navies train and test in designated Operating Areas at sea. The two activities with the clearest effects on whales are <b>mid-frequency active sonar</b>, used to hunt submarines, and <b>underwater explosions</b> from live-fire training and ship shock tests.</p>
+        <ul class="fact-list">
+          <li><b>Beaked whales are the most sensitive.</b> They are the species in every well-documented sonar-linked mass stranding. In the Bahamas in March 2000, 14 beaked whales, 2 minke whales and a dolphin stranded within 36 hours after five US Navy ships passed through using mid-frequency sonar. A joint Navy–NOAA report linked the deaths to the sonar.</li>
+          <li><b>Canary Islands, 2002:</b> 14 beaked whales stranded within hours of a NATO exercise starting; 10 had gas bubbles and bleeding in their organs, signs like decompression sickness. Spain banned naval exercises around the islands in 2004, and no such mass strandings have happened there since.</li>
+          <li><b>Big whales change course too.</b> Tagged blue whales off Southern California exposed to simulated sonar at levels far below real military systems stopped deep feeding, sped up, or swam away from the sound (Goldbogen et al., 2013).</li>
+          <li><b>Likely mechanism:</b> the sound frightens deep-diving whales into surfacing too fast, overriding their normal dive response, so nitrogen forms bubbles in their tissue.</li>
+        </ul>
+      </div>
+      <div class="drilling-col">
+        <h3>What the map can and can't show</h3>
+        <p class="trend-note">Turn on <b>Military training areas</b> above the map to see US Operating Area boundaries. Each sighting's details say whether it falls inside one, and each historical blue whale track shows how many of its positions did. Many of those tracks start near San Nicolas Island, inside the Navy's Southern California range.</p>
+        <p class="trend-note" style="margin-top:10px;">What it can't show is cause. Exercise dates and sonar use are not published as data, so the map shows where whales and training areas overlap, not whether a particular whale was exposed or changed course because of it. Linking a stranding or a route change to a specific exercise takes necropsies and acoustic records.</p>
+        <ul class="source-list">
+          <li>Operating Area boundaries — NOAA Office for Coastal Management / MarineCadastre, live</li>
+          <li>Strandings and mechanism — Discovery of Sound in the Sea (University of Rhode Island); Bernaldo de Quirós et al. 2019, Proceedings of the Royal Society B</li>
+          <li>Blue whale responses — Goldbogen et al. 2013, Proceedings of the Royal Society B (Cascadia Research)</li>
         </ul>
       </div>
     </div>
@@ -980,6 +1013,8 @@ let leasePolygons = [];
 let landPolygons = [];
 let smaPolygons = [];
 let mpaPolygons = [];
+let militaryPolygons = [];
+let militaryVisible = false;
 let padddZones = [];
 let padddMeta = { citation: null, scope: null, count: 0 };
 let hotspots = []; // repeat locations: clusters of 2+ documented events within ~100 km
@@ -1103,6 +1138,8 @@ function annotateOccurrences(){
     o._inMPA = !!mpa;
     o._mpaName = mpa ? mpa.id : null;
     o._mpaProtectionLevel = mpa ? mpa.protectionLevel : null;
+    const mil = findMatchingZone(o.lat, o.lon, militaryPolygons);
+    o._milArea = mil ? (mil.id || 'Unnamed operating area') : null;
     const paddd = findMatchingZone(o.lat, o.lon, padddZones);
     o._inPADDDZone = !!paddd;
     o._padddEvent = paddd || null;
@@ -1172,6 +1209,19 @@ function trackFarthest(t){
   t.pts.forEach(p=>{ const k = haversineKm(a[1], a[0], p[1], p[0]); if(k > bestKm){ bestKm = k; best = p; } });
   return { pt: best, km: bestKm };
 }
+// Share of a track's positions that fall inside military Operating Areas.
+// Cached per track, since it tests every point against every area.
+function trackMilitaryRow(t, row){
+  if(!militaryPolygons.length) return '';
+  if(t._mil == null){
+    let n = 0; const names = {};
+    t.pts.forEach(p=>{ const z = findMatchingZone(p[1], p[0], militaryPolygons); if(z){ n++; const k = z.id || 'Unnamed area'; names[k] = (names[k]||0) + 1; } });
+    const top = Object.entries(names).sort((a,b)=>b[1]-a[1]).slice(0,2).map(e=>e[0]);
+    t._mil = { n, pct: Math.round(100 * n / t.pts.length), top };
+  }
+  const m = t._mil;
+  return row('In military operating areas', m.n ? `${m.n} of ${t.pts.length} positions (${m.pct}%)${m.top.length ? ' · ' + m.top.join(', ') : ''}` : 'None');
+}
 function trackDetailHtml(t){
   const row = (k, v) => (v!=null && v!=='') ? `<div class="kv"><span class="k">${k}</span><span class="v">${esc(v)}</span></div>` : '';
   const far = trackFarthest(t);
@@ -1191,6 +1241,7 @@ function trackDetailHtml(t){
     ${row('Sex', t.sex)}
     ${row('Life stage', t.lifeStage)}
     ${row('Positions shown', t.pts.length.toLocaleString())}
+    ${trackMilitaryRow(t, row)}
     <div class="track-note">
       Historical data, not a live position. The circle marks where the whale was tagged; the square marks the last position before the tag stopped transmitting.<br><br>
       <b>Source:</b> ${esc(m.citation || 'Mate et al. 2019, Movebank Data Repository')}${m.doiUrl ? ` <a href="${esc(m.doiUrl)}" target="_blank" rel="noopener">${esc(m.doiUrl)}</a>` : ''}<br><br>
@@ -1263,6 +1314,7 @@ function drawMap(){
   drawRingLayer(leasePolygons, zoneVisible, 'lease-zone');
   drawRingLayer(smaPolygons, smaVisible, 'sma-zone');
   drawRingLayer(mpaPolygons, mpaVisible, 'mpa-zone');
+  drawRingLayer(militaryPolygons, militaryVisible, 'mil-zone');
   drawRingLayer(padddZones, padddVisible, 'paddd-zone');
 
   // Historical satellite tracks (one line per whale). Drawn under the live
@@ -1513,6 +1565,7 @@ function renderDetail(){
     <div class="kv"><span class="k">Right whale speed zone</span><span class="v">${o._inRightWhaleSMA ? esc(o._smaName || 'Yes') : 'No'}</span></div>
     <div class="kv"><span class="k">Marine Protected Area</span><span class="v">${o._inMPA ? esc(o._mpaName || 'Yes') : 'No'}</span></div>
     ${o._inMPA && o._mpaProtectionLevel ? `<div class="kv"><span class="k">Protection level</span><span class="v">${esc(o._mpaProtectionLevel)}</span></div>` : ''}
+    <div class="kv"><span class="k">Military operating area</span><span class="v">${o._milArea ? esc(o._milArea) : 'No'}</span></div>
     ${o._inPADDDZone ? `<div class="event-note" style="margin-top:10px;">⚠ In a documented protection-change zone — ${esc(o._padddEvent.name)} (${esc(o._padddEvent.year)}): ${esc(o._padddEvent.zonePreLabel)} → ${esc(o._padddEvent.zonePostLabel)}${o._padddEvent.protectionLoosened ? ' (protection loosened)' : ''}</div>` : ''}
     <p class="trend-note" style="margin-top:12px; font-size:11px; color:var(--ink-faint);">This is one sighting record, not a tracked individual. Following a single whale over time needs photo-ID or satellite-tag data (the Argos partnership is still pending). Distances use a generalized coastline, so near-shore figures can be off by a few km.</p>
   `;
@@ -1585,6 +1638,8 @@ function drawSSTComparison(){
 function updateDrillingProximity(){
   const count = allOccurrences.filter(o=>o._inLeaseArea).length;
   document.getElementById('drillingProxCount').textContent = count;
+  const milEl = document.getElementById('militaryProxCount');
+  if(milEl) milEl.textContent = militaryPolygons.length ? allOccurrences.filter(o=>o._milArea).length : '—';
 }
 
 function updateHeaderSpeciesLine(){
@@ -1706,6 +1761,11 @@ async function loadData(){
     const res6 = await fetch('/api/mpa-boundaries');
     const mpa = await res6.json();
     mpaPolygons = mpa.data || [];
+  } catch(e){ /* non-fatal */ }
+  try {
+    const resMil = await fetch('/api/military-areas');
+    const mil = await resMil.json();
+    militaryPolygons = mil.data || [];
   } catch(e){ /* non-fatal — MPA flags just show as No */ }
   try {
     const res7 = await fetch('/api/paddd');
@@ -1763,6 +1823,10 @@ document.getElementById('toggleSMA').addEventListener('change', (e)=>{
 });
 document.getElementById('toggleMPA').addEventListener('change', (e)=>{
   mpaVisible = e.target.checked;
+  drawMap();
+});
+document.getElementById('toggleMilitary').addEventListener('change', (e)=>{
+  militaryVisible = e.target.checked;
   drawMap();
 });
 document.getElementById('togglePADDD').addEventListener('change', (e)=>{

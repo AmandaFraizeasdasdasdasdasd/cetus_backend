@@ -76,6 +76,14 @@ const RIGHT_WHALE_SMA_URL = process.env.RIGHT_WHALE_SMA_URL ||
 const MPA_BOUNDARIES_URL = process.env.MPA_BOUNDARIES_URL ||
   'https://services1.arcgis.com/eGSDp8lpKe5izqVc/ArcGIS/rest/services/Marine_Protected_Areas__MPAIs_/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson';
 
+// NOAA Office for Coastal Management / MarineCadastre -- US Navy and other
+// military Operating Areas (OPAREAs), where training exercises and system
+// tests (including sonar and live explosives) are routinely conducted.
+// US waters plus Hawaii and Guam. Boundaries only: exercise schedules are
+// not published as a live feed.
+const MILITARY_OPAREA_URL = process.env.MILITARY_OPAREA_URL ||
+  'https://coast.noaa.gov/arcgis/rest/services/Hosted/MilitaryOperatingAreaBoundaries/FeatureServer/0/query?where=1%3D1&outFields=featurename,typedomain,installationidentifier&outSR=4326&f=geojson';
+
 // ---- in-memory cache -------------------------------------------------
 // Swap this for a real database (Postgres, SQLite, etc.) once this is
 // past the prototype stage -- an in-memory cache resets on every deploy
@@ -86,6 +94,7 @@ const cache = {
   drillingLeases: { updatedAt: null, data: [] },
   rightWhaleSMA: { updatedAt: null, data: [] },
   mpaBoundaries: { updatedAt: null, data: [] },
+  militaryAreas: { updatedAt: null, data: [] },
   speciesImages: { updatedAt: null, data: {} },
   populationStatus: { updatedAt: null, data: {} },
 };
@@ -700,6 +709,18 @@ async function fetchMPABoundaries() {
   );
 }
 
+async function fetchMilitaryAreas() {
+  const features = await fetchEsriFeaturesAll(MILITARY_OPAREA_URL, 'military-areas');
+  return normalizePolygonFeatures(
+    features,
+    props => props.featurename || props.FEATURENAME || null,
+    props => ({
+      areaType: props.typedomain || null,
+      installation: props.installationidentifier || null,
+    })
+  );
+}
+
 // ---- PADDDtracker.org -- bundled, static (not a live fetch) -----------
 // Real, peer-reviewed research data on documented Protected Area
 // Downgrading, Downsizing, and Degazettement events, filtered to the
@@ -779,6 +800,14 @@ async function refreshAll() {
   } catch (err) {
     console.error('[refresh] MPA boundaries fetch failed:', err.message || err);
   }
+
+  try {
+    cache.militaryAreas.data = await fetchMilitaryAreas();
+    cache.militaryAreas.updatedAt = new Date().toISOString();
+    console.log(`[refresh] Military operating areas: ${cache.militaryAreas.data.length} polygons`);
+  } catch (err) {
+    console.error('[refresh] Military operating areas fetch failed:', err.message || err);
+  }
 }
 
 // ---- API ------------------------------------------------------------
@@ -796,6 +825,10 @@ app.get('/api/leases', (req, res) => {
 
 app.get('/api/right-whale-sma', (req, res) => {
   res.json(cache.rightWhaleSMA);
+});
+
+app.get('/api/military-areas', (req, res) => {
+  res.json(cache.militaryAreas);
 });
 
 app.get('/api/mpa-boundaries', (req, res) => {
@@ -856,6 +889,11 @@ app.get('/api/status', (req, res) => {
       updatedAt: cache.mpaBoundaries.updatedAt,
       count: cache.mpaBoundaries.data.length,
       scope: 'NOAA US Marine Protected Areas Inventory — US only',
+    },
+    militaryAreas: {
+      updatedAt: cache.militaryAreas.updatedAt,
+      count: cache.militaryAreas.data.length,
+      scope: 'NOAA/MarineCadastre military Operating Areas — US waters, Hawaii, Guam; boundaries only, no exercise schedules',
     },
     paddd: {
       count: PADDD_EVENTS.length,
