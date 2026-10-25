@@ -1750,6 +1750,7 @@ const HABITATS = [
   ['Physeter macrocephalus', -44, -42, 173, 174.5, null, 'Kaikoura, New Zealand: a deep undersea canyon close to shore draws feeding sperm whales year-round.'],
   ['Balaenoptera physalus', 41, 45, 6, 11, [5,6,7,8,9,10], 'Pelagos Sanctuary, Ligurian Sea: summer feeding on krill; one of the Mediterranean\u2019s few whale hotspots.'],
   ['Balaenoptera physalus', 45, 52, -70, -55, [6,7,8,9,10], 'Gulf of St. Lawrence: summer feeding on krill and small fish.'],
+  ['Balaenoptera physalus', 32, 35, -121.5, -117, null, 'Southern California Bight: fin whales are found here year-round, feeding on krill over the deep basins and banks offshore.'],
   ['Balaenoptera physalus', 40, 46, -71, -64, [4,5,6,7,8,9,10], 'Gulf of Maine: a summer feeding ground shared with humpbacks.'],
 ];
 const SPECIES_GENERAL = {
@@ -1864,10 +1865,10 @@ function renderBriefing(){
   const nLease = list.filter(o=>o._inLeaseArea).length, nRare = list.filter(o=>o.anomaly).length;
   const inland = list.filter(o=>o.insideCoastline).length;
   const pressure = [
-    `<li><b>Protected areas:</b> ${share(nMPA)} of these sightings are inside a US Marine Protected Area.</li>`,
+    mpaPolygons.length ? `<li><b>Protected areas:</b> ${share(nMPA)} of these sightings are inside a US Marine Protected Area.</li>` : '',
     militaryPolygons.length ? `<li><b>Military training areas:</b> ${share(nMil)} are inside a US Operating Area where sonar and weapons tests take place.</li>` : '',
-    `<li><b>Oil and gas:</b> ${share(nLease)} are inside an active Gulf of Mexico lease.</li>`,
-    inland ? `<li><b>Inside the coastline:</b> ${inland} sighting${inland>1?'s are':' is'} inside the mapped coastline, in a bay, harbor or river. Usually that's a harbor or estuary whales use normally, but it's where displacement shows up first.</li>` : '',
+    leasePolygons.length ? `<li><b>Oil and gas:</b> ${share(nLease)} are inside an active Gulf of Mexico lease.</li>` : '',
+    inland ? `<li><b>Inside the coastline:</b> ${inland} sighting${inland>1?'s are':' is'} inside the mapped coastline, mostly bays such as Monterey Bay or San Francisco Bay, which whales use normally. A whale far up a river, as in the Sacramento cases, is the kind of thing that shows up here first.</li>` : '',
     nRare ? `<li><b>Unusual places:</b> ${nRare} sighting${nRare>1?'s are':' is'} in a region rarely recorded for that species. Low confidence; see Alerts.</li>` : '',
   ].join('');
 
