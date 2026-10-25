@@ -1768,7 +1768,8 @@ const COMMON_FALLBACK = {
   'Eubalaena glacialis':'North Atlantic right whale',
 };
 function plainName(sp, plural){
-  const c = commonNameFor(sp) || COMMON_FALLBACK[sp] || sp;
+  const cn = commonNameFor(sp);
+  const c = (cn && cn !== sp) ? cn : (COMMON_FALLBACK[sp] || sp);
   if(!plural) return c;
   return /orca$/i.test(c) ? c + 's' : c.replace(/whale$/i, 'whales');
 }
