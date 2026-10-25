@@ -71,10 +71,11 @@ const BOEM_LEASES_URL = process.env.BOEM_LEASES_URL ||
 const RIGHT_WHALE_SMA_URL = process.env.RIGHT_WHALE_SMA_URL ||
   'https://services2.arcgis.com/C8EMgrsFcRFL6LrL/arcgis/rest/services/Seasonal_Management_Areas/FeatureServer/3/query?where=1%3D1&outFields=*&outSR=4326&f=geojson';
 
-// NOAA's Marine Protected Areas Inventory -- real US MPA boundaries with
+// NOAA's Marine Protected Areas Inventory (2024 release, hosted by NOAA's MPA
+// Center; the older MPAIs service was taken down) -- real US MPA boundaries with
 // protection-level classification. US-only, like the two above.
 const MPA_BOUNDARIES_URL = process.env.MPA_BOUNDARIES_URL ||
-  'https://services1.arcgis.com/eGSDp8lpKe5izqVc/ArcGIS/rest/services/Marine_Protected_Areas__MPAIs_/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson';
+  'https://services2.arcgis.com/C8EMgrsFcRFL6LrL/arcgis/rest/services/NOAA_MPA_Inventory_2023/FeatureServer/0/query?where=1%3D1&outFields=Site_Name,Prot_Lvl,Gov_Level&outSR=4326&maxAllowableOffset=0.005&geometryPrecision=4&f=geojson';
 
 // NOAA Office for Coastal Management / MarineCadastre -- US Navy and other
 // military Operating Areas (OPAREAs), where training exercises and system
@@ -82,7 +83,7 @@ const MPA_BOUNDARIES_URL = process.env.MPA_BOUNDARIES_URL ||
 // US waters plus Hawaii and Guam. Boundaries only: exercise schedules are
 // not published as a live feed.
 const MILITARY_OPAREA_URL = process.env.MILITARY_OPAREA_URL ||
-  'https://coast.noaa.gov/arcgis/rest/services/Hosted/MilitaryOperatingAreaBoundaries/FeatureServer/0/query?where=1%3D1&outFields=featurename,typedomain,installationidentifier&outSR=4326&f=geojson';
+  'https://coast.noaa.gov/arcgis/rest/services/Hosted/MilitaryOperatingAreas/FeatureServer/0/query?where=1%3D1&outFields=featurename,sitereportingcomponent,region&outSR=4326&maxAllowableOffset=0.01&geometryPrecision=4&f=geojson';
 
 // ---- in-memory cache -------------------------------------------------
 // Swap this for a real database (Postgres, SQLite, etc.) once this is
@@ -715,8 +716,8 @@ async function fetchMilitaryAreas() {
     features,
     props => props.featurename || props.FEATURENAME || null,
     props => ({
-      areaType: props.typedomain || null,
-      installation: props.installationidentifier || null,
+      branch: props.sitereportingcomponent || null,
+      region: props.region || null,
     })
   );
 }
